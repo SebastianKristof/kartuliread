@@ -1,0 +1,7 @@
+{
+  "name": "KartuliRead - Georgian Reading Practice",
+  "description": "A progressive tool to master Georgian reading by practicing real letter combinations, starting from 2 letters and advancing through complexity levels with native-like audio and transcription support.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

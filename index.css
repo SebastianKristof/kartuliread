@@ -1,0 +1,19 @@
+/* Additional custom styles for KartuliRead */
+/* Most styling is handled via Tailwind CSS classes in components */
+
+/* Ensure proper viewport handling and prevent horizontal scroll */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Ensure root container takes full height */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
