@@ -6,6 +6,34 @@ import { EXERCISES_DATA } from './data/exercisesData';
 
 const STORAGE_KEY = 'kartuliread_progress';
 const STORAGE_LEVEL_KEY = 'kartuliread_current_level';
+const STORAGE_MASTERED_SETS_KEY = 'kartuliread_mastered_sets';
+
+// Load mastered sets from localStorage
+const loadMasteredSets = (): { [key: number]: number[] } => {
+  try {
+    const saved = localStorage.getItem(STORAGE_MASTERED_SETS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const mastered: { [key: number]: number[] } = {};
+      for (let i = 1; i <= 8; i++) {
+        mastered[i] = Array.isArray(parsed[i]) ? parsed[i] : [];
+      }
+      return mastered;
+    }
+  } catch (e) {
+    console.error('Failed to load mastered sets:', e);
+  }
+  return { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] };
+};
+
+// Save mastered sets to localStorage
+const saveMasteredSets = (mastered: { [key: number]: number[] }) => {
+  try {
+    localStorage.setItem(STORAGE_MASTERED_SETS_KEY, JSON.stringify(mastered));
+  } catch (e) {
+    console.error('Failed to save mastered sets:', e);
+  }
+};
 
 // Load progress from localStorage
 const loadProgress = (): { [key: number]: number } => {
@@ -73,11 +101,17 @@ const App: React.FC = () => {
   // Modal states
   const [showResetModal, setShowResetModal] = useState(false);
   const [congratulationsMessage, setCongratulationsMessage] = useState<string | null>(null);
+  const [masteredSets, setMasteredSets] = useState<{ [key: number]: number[] }>(() => loadMasteredSets());
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
     saveProgress(levelProgress);
   }, [levelProgress]);
+
+  // Save mastered sets to localStorage whenever it changes
+  useEffect(() => {
+    saveMasteredSets(masteredSets);
+  }, [masteredSets]);
 
   // Save current level to localStorage whenever it changes
   useEffect(() => {
@@ -200,13 +234,21 @@ const App: React.FC = () => {
             // Finished all repetitions - clear queue and exit repetition mode
             // Show congratulations after review is done, based on context
             if (repetitionContext === 'chunk') {
-              setCongratulationsMessage('Group complete!\nYou have finished this group of 10, including review.');
+              setCongratulationsMessage('Set complete!\nYou have finished this set of 10, including review.');
+              // Mark the set as mastered
+              const finishedSetNum = Math.floor((successCount - 1) / BATCH_SIZE) + 1;
+              setMasteredSets(prev => ({
+                ...prev,
+                [currentLevel]: Array.from(new Set([...(prev[currentLevel] || []), finishedSetNum]))
+              }));
             } else if (repetitionContext === 'level') {
               setCongratulationsMessage(`Level ${currentLevel} mastered!\nYou have completed all items in this level, including review.`);
             }
             setRepetitionContext(null);
             setIsInRepetitionMode(false);
             setShowTranscription(false);
+            setSuccessfulHistory([]);
+            setUnsuccessfulHistory([]);
             return [];
           } else {
             setShowTranscription(false);
@@ -230,9 +272,11 @@ const App: React.FC = () => {
     setShowTranscription(false);
 
     if (nextCount >= SUCCESS_THRESHOLD) {
-      // Level complete - clear history for review/next level
-      setSuccessfulHistory([]);
-      setUnsuccessfulHistory([]);
+      // Only clear history now if no review needed - otherwise wait until end of review
+      if (failedQueue.length === 0) {
+        setSuccessfulHistory([]);
+        setUnsuccessfulHistory([]);
+      }
 
       // If there are failed items, go into level review first; congratulate after review.
       setFailedQueue(currentQueue => {
@@ -247,9 +291,11 @@ const App: React.FC = () => {
       });
     } else if (nextCount % BATCH_SIZE === 0) {
       // Chunk complete in normal mode.
-      // Clear history for new chunk and show congratulations
-      setSuccessfulHistory([]);
-      setUnsuccessfulHistory([]);
+      // Only clear history now if there's no review phase coming up
+      if (failedQueue.length === 0) {
+        setSuccessfulHistory([]);
+        setUnsuccessfulHistory([]);
+      }
 
       setFailedQueue(currentQueue => {
         if (currentQueue.length > 0) {
@@ -257,7 +303,13 @@ const App: React.FC = () => {
           setRepetitionIndex(0);
           setRepetitionContext('chunk');
         } else {
-          setCongratulationsMessage('Group complete!\nYou have finished this group of 10.');
+          setCongratulationsMessage('Set complete!\nYou have finished this set of 10.');
+          // Mark the set as mastered immediately if no review needed
+          const finishedSetNum = Math.floor((nextCount - 1) / BATCH_SIZE) + 1;
+          setMasteredSets(prev => ({
+            ...prev,
+            [currentLevel]: Array.from(new Set([...(prev[currentLevel] || []), finishedSetNum]))
+          }));
         }
         return currentQueue;
       });
@@ -285,9 +337,11 @@ const App: React.FC = () => {
       setShowTranscription(false);
 
       if (nextCount >= SUCCESS_THRESHOLD) {
-        // Level complete - clear history for review/next level
-        setSuccessfulHistory([]);
-        setUnsuccessfulHistory([]);
+        // Only clear history now if no review needed - otherwise wait until end of review
+        if (updatedQueue.length === 0) {
+          setSuccessfulHistory([]);
+          setUnsuccessfulHistory([]);
+        }
 
         // If we finish the level, show any remaining failed exercises
         if (updatedQueue.length > 0) {
@@ -296,9 +350,11 @@ const App: React.FC = () => {
           setRepetitionContext('level');
         }
       } else if (nextCount % BATCH_SIZE === 0) {
-        // Block complete - clear history for new chunk
-        setSuccessfulHistory([]);
-        setUnsuccessfulHistory([]);
+        // Block complete - only clear history now if no review needed
+        if (updatedQueue.length === 0) {
+          setSuccessfulHistory([]);
+          setUnsuccessfulHistory([]);
+        }
 
         // Check if there are failed exercises to repeat
         if (updatedQueue.length > 0) {
@@ -350,11 +406,15 @@ const App: React.FC = () => {
     setRepetitionIndex(0);
     setSuccessfulHistory([]);
     setUnsuccessfulHistory([]);
+    setMasteredSets(prev => ({ ...prev, [currentLevel]: [] }));
     setShowResetModal(false);
   };
 
-  const currentGroup = Math.floor(successCount / BATCH_SIZE) + 1;
-  const groupProgress = successCount % BATCH_SIZE;
+  const isAtSetBoundary = successCount > 0 && successCount % BATCH_SIZE === 0;
+  const showPreviousSetInfo = isAtSetBoundary && (isInRepetitionMode || (congratulationsMessage && !congratulationsMessage.includes('mastered')));
+
+  const currentGroup = showPreviousSetInfo ? Math.floor(successCount / BATCH_SIZE) : Math.floor(successCount / BATCH_SIZE) + 1;
+  const groupProgress = showPreviousSetInfo ? BATCH_SIZE : successCount % BATCH_SIZE;
 
   // Auto-dismiss congratulations messages
   useEffect(() => {
@@ -480,21 +540,21 @@ const App: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
                     {[1, 2, 3, 4, 5].map(setNum => {
-                      const isCompleted = successCount >= setNum * BATCH_SIZE;
+                      const isMastered = masteredSets[currentLevel]?.includes(setNum);
                       const isCurrent = currentGroup === setNum;
                       return (
                         <button
                           key={setNum}
                           onClick={() => handleSetChange(setNum)}
-                          disabled={isCompleted}
-                          className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isCompleted
+                          disabled={isMastered}
+                          className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isMastered
                               ? 'bg-emerald-50 text-emerald-500 border-emerald-100 opacity-80 cursor-default'
                               : isCurrent
                                 ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm scale-110'
                                 : 'bg-white text-indigo-300 border-indigo-50 hover:border-indigo-200'
                             }`}
                         >
-                          {isCompleted ? (
+                          {isMastered ? (
                             <div className="flex items-center gap-1">
                               <i className="fas fa-check-circle"></i>
                               <span>Set {setNum}</span>
