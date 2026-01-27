@@ -188,28 +188,28 @@ const App: React.FC = () => {
     // Level 1-2: largest, Level 3-4: medium, Level 5-6: smaller to fit width
 
     if (len <= 3) {
-      // Very short words - balanced for desktop
-      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl";
+      // Very short words
+      return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem]";
     } else if (len <= 5) {
       // Short words
-      return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl";
+      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl";
     } else if (len <= 7) {
       // Medium words - scale by level
+      if (currentLevel <= 2) {
+        return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl";
+      } else if (currentLevel <= 4) {
+        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
+      } else {
+        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
+      }
+    } else {
+      // Long words - scale significantly
       if (currentLevel <= 2) {
         return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
       } else if (currentLevel <= 4) {
         return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
       } else {
         return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
-      }
-    } else {
-      // Long words - scale significantly
-      if (currentLevel <= 2) {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
-      } else if (currentLevel <= 4) {
-        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
-      } else {
-        return "text-xl sm:text-2xl md:text-3xl lg:text-4xl";
       }
     }
   }, [currentExercise, currentLevel]);
@@ -589,10 +589,10 @@ const App: React.FC = () => {
                 <span>Overall Level Mastery</span>
                 <span>{successCount} / {SUCCESS_THRESHOLD}</span>
               </div>
-              <div className="h-8 sm:h-10 mt-1 flex flex-col justify-center">
+              <div className="h-6 sm:h-8 mt-1 flex flex-col justify-center">
                 {isInRepetitionMode && failedQueue.length > 0 ? (
                   <div className="text-center animate-in slide-in-from-bottom-2 duration-300">
-                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
+                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-amber-300">
                       <i className="fas fa-redo text-amber-700"></i>
                       <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
                     </div>
@@ -602,19 +602,19 @@ const App: React.FC = () => {
             </div>
 
             {/* Exercise Area */}
-            <div className="p-4 sm:p-5 md:p-6 lg:p-8 flex flex-col items-center justify-center relative bg-white">
+            <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white">
               {currentExercise ? (
-                <div className="w-full text-center space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 animate-in fade-in zoom-in duration-500">
-                  <div className="flex flex-col items-center justify-center min-h-[140px] sm:min-h-[160px] md:min-h-[180px] lg:min-h-[200px] w-full px-2 sm:px-4">
+                <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500">
+                  <div className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0">
                     <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
                       {currentExercise.georgian}
                     </span>
                   </div>
 
-                  <div className="h-[90px] sm:h-[100px] md:h-[110px] lg:h-[120px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-5 border border-slate-100">
+                  <div className="h-[72px] sm:h-[80px] md:h-[88px] lg:h-[96px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 border border-slate-100">
                     {showTranscription ? (
-                      <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-1 sm:space-y-2">
-                        <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
+                      <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-0.5 sm:space-y-1">
+                        <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
                         {currentExercise.meaning && (
                           <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">
                             {/syllable|letter|root|suffix/i.test(currentExercise.meaning)
