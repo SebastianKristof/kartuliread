@@ -63,11 +63,16 @@ const App: React.FC = () => {
   const [levelProgress, setLevelProgress] = useState<{ [key: number]: number }>(() => loadProgress());
   const [currentLevel, setCurrentLevel] = useState(() => loadCurrentLevel());
   const [showTranscription, setShowTranscription] = useState(false);
-  const [history, setHistory] = useState<Exercise[]>([]);
+  const [successfulHistory, setSuccessfulHistory] = useState<Exercise[]>([]);
+  const [unsuccessfulHistory, setUnsuccessfulHistory] = useState<Exercise[]>([]);
   // Queue for failed exercises to repeat at end of block
   const [failedQueue, setFailedQueue] = useState<Exercise[]>([]);
   const [isInRepetitionMode, setIsInRepetitionMode] = useState(false);
   const [repetitionIndex, setRepetitionIndex] = useState(0);
+  const [repetitionContext, setRepetitionContext] = useState<'chunk' | 'level' | null>(null);
+  // Modal states
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [congratulationsMessage, setCongratulationsMessage] = useState<string | null>(null);
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
@@ -81,6 +86,7 @@ const App: React.FC = () => {
 
   // Current level total progress
   const successCount = levelProgress[currentLevel] || 0;
+  const isLevelMastered = successCount >= SUCCESS_THRESHOLD;
   
   // Helper to shuffle a subset of an array
   const shuffleArray = <T,>(array: T[]): T[] => {
@@ -92,9 +98,11 @@ const App: React.FC = () => {
     return shuffled;
   };
 
-  // Exercises for the current level, shuffled in blocks of 10
+  // Exercises for the current level, shuffled in blocks of 10.
+  // Enforce that each word length matches the current level (e.g. Level 4 → 4-letter words).
   const levelExercises = useMemo(() => {
-    const raw = EXERCISES_DATA[currentLevel] || [];
+    const allForLevel = EXERCISES_DATA[currentLevel] || [];
+    const raw = allForLevel.filter(ex => [...ex.georgian].length === currentLevel);
     const processed: Exercise[] = [];
     
     // Process in chunks of 10 to keep the general difficulty curve 
@@ -154,16 +162,29 @@ const App: React.FC = () => {
     if (!currentExercise) return;
 
     if (isInRepetitionMode) {
-      // In repetition mode - move to next failed exercise or exit repetition mode
+      // In repetition mode - move item from unsuccessful to successful
+      setUnsuccessfulHistory(prev => prev.filter(h => h.id !== currentExercise.id));
+      setSuccessfulHistory(prev => {
+        const alreadyExists = prev.find(h => h.id === currentExercise.id);
+        if (alreadyExists) return prev;
+        return [currentExercise, ...prev].slice(0, 20);
+      });
+      
+      // Move to next failed exercise or exit repetition mode
       setRepetitionIndex(prev => {
         const nextRepIndex = prev + 1;
         setFailedQueue(currentQueue => {
           if (nextRepIndex >= currentQueue.length) {
             // Finished all repetitions - clear queue and exit repetition mode
+            // Show congratulations after review is done, based on context
+            if (repetitionContext === 'chunk') {
+              setCongratulationsMessage('Group complete!\nYou have finished this group of 10, including review.');
+            } else if (repetitionContext === 'level') {
+              setCongratulationsMessage(`Level ${currentLevel} mastered!\nYou have completed all items in this level, including review.`);
+            }
+            setRepetitionContext(null);
             setIsInRepetitionMode(false);
             setShowTranscription(false);
-            // Check if we need to start a new block
-            // (No notification needed - progress area shows status)
             return [];
           } else {
             setShowTranscription(false);
@@ -176,7 +197,7 @@ const App: React.FC = () => {
     }
 
     // Normal mode - track history and progress
-    setHistory(prev => {
+    setSuccessfulHistory(prev => {
         const alreadyExists = prev.find(h => h.id === currentExercise.id);
         if (alreadyExists) return prev;
         return [currentExercise, ...prev].slice(0, 20);
@@ -187,20 +208,28 @@ const App: React.FC = () => {
     setShowTranscription(false);
 
     if (nextCount >= SUCCESS_THRESHOLD) {
-      // Check for failed exercises before completing level
+      // Level complete in normal mode.
+      // If there are failed items, go into level review first; congratulate after review.
       setFailedQueue(currentQueue => {
         if (currentQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
+          setRepetitionContext('level');
+        } else {
+          setCongratulationsMessage(`Level ${currentLevel} mastered!\nYou have completed all items in this level.`);
         }
         return currentQueue;
       });
     } else if (nextCount % BATCH_SIZE === 0) {
-      // Block complete - check if there are failed exercises to repeat
+      // Chunk complete in normal mode.
+      // If there are failed items, go into chunk review first; congratulate after review.
       setFailedQueue(currentQueue => {
         if (currentQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
+          setRepetitionContext('chunk');
+        } else {
+          setCongratulationsMessage('Group complete!\nYou have finished this group of 10.');
         }
         return currentQueue;
       });
@@ -209,6 +238,13 @@ const App: React.FC = () => {
 
   const handleCouldntRead = () => {
     if (!currentExercise) return;
+    
+    // Add to unsuccessful history
+    setUnsuccessfulHistory(prev => {
+      const alreadyExists = prev.find(h => h.id === currentExercise.id);
+      if (alreadyExists) return prev;
+      return [currentExercise, ...prev].slice(0, 20);
+    });
     
     // Add to failed queue if not already there, then move to next exercise
     setFailedQueue(prev => {
@@ -225,12 +261,14 @@ const App: React.FC = () => {
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
+          setRepetitionContext('level');
         }
       } else if (nextCount % BATCH_SIZE === 0) {
         // Block complete - check if there are failed exercises to repeat
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
+          setRepetitionContext('chunk');
         }
       }
       
@@ -252,20 +290,85 @@ const App: React.FC = () => {
   };
 
   const handleResetLevel = () => {
-    if (window.confirm(`Reset progress for Level ${currentLevel}? This cannot be undone.`)) {
-      setLevelProgress(prev => ({ ...prev, [currentLevel]: 0 }));
-      setShowTranscription(false);
-      setFailedQueue([]);
-      setIsInRepetitionMode(false);
-      setRepetitionIndex(0);
-    }
+    setShowResetModal(true);
+  };
+
+  const confirmResetLevel = () => {
+    setLevelProgress(prev => ({ ...prev, [currentLevel]: 0 }));
+    setShowTranscription(false);
+    setFailedQueue([]);
+    setIsInRepetitionMode(false);
+    setRepetitionIndex(0);
+    setShowResetModal(false);
   };
 
   const currentGroup = Math.floor(successCount / BATCH_SIZE) + 1;
   const groupProgress = successCount % BATCH_SIZE;
 
+  // Auto-dismiss congratulations modal after 3 seconds
+  useEffect(() => {
+    if (congratulationsMessage) {
+      const timer = setTimeout(() => {
+        setCongratulationsMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [congratulationsMessage]);
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8">
+      {/* Reset Confirmation Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-red-500 animate-in zoom-in duration-300">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-exclamation-triangle text-red-600 text-3xl"></i>
+                </div>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Reset Level {currentLevel}?</h3>
+              <p className="text-sm sm:text-base text-slate-600 mb-6">This will reset all progress for Level {currentLevel}. This cannot be undone.</p>
+              <div className="flex gap-3 sm:gap-4 justify-center">
+                <button
+                  onClick={() => setShowResetModal(false)}
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmResetLevel}
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Congratulations Modal */}
+      {congratulationsMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-emerald-500 animate-in zoom-in duration-300">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
+                  <i className="fas fa-trophy text-emerald-600 text-3xl"></i>
+                </div>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-3 whitespace-pre-line">{congratulationsMessage}</h3>
+              <button
+                onClick={() => setCongratulationsMessage(null)}
+                className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="w-full max-w-2xl mb-3 sm:mb-4 md:mb-6 text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900 mb-1 sm:mb-2">KartuliRead</h1>
         <p className="text-xs sm:text-sm md:text-base text-slate-500 font-medium tracking-tight">Mastering {currentLevel}-letter combinations</p>
@@ -375,11 +478,13 @@ const App: React.FC = () => {
                 </button>
               </div>
             </div>
-          ) : (
+          ) : isLevelMastered ? (
             <div className="text-center p-6 sm:p-8 md:p-12 animate-in zoom-in duration-500">
               <i className="fas fa-check-circle text-emerald-500 text-4xl sm:text-5xl md:text-6xl mb-4 sm:mb-6"></i>
               <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Level Complete!</h3>
-              <p className="text-sm sm:text-base text-slate-500 font-medium mb-6 sm:mb-8">You've mastered all 50 items in this level.</p>
+              <p className="text-sm sm:text-base text-slate-500 font-medium mb-6 sm:mb-8">
+                You've mastered all {SUCCESS_THRESHOLD} items in this level.
+              </p>
               <button 
                 onClick={() => handleLevelChange(currentLevel + 1 <= 6 ? currentLevel + 1 : 1)}
                 className="bg-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-[2rem] font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] sm:text-xs"
@@ -387,30 +492,76 @@ const App: React.FC = () => {
                 Go to {currentLevel + 1 <= 8 ? `Level ${currentLevel + 1}` : "Level 1"}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </main>
 
-      {/* History Grid */}
+      {/* History Grid - Two Columns */}
       <section className="w-full max-w-2xl mt-6 sm:mt-8 md:mt-12 mb-8 sm:mb-12 md:mb-16 px-2">
         <div className="flex justify-between items-center mb-4 sm:mb-6">
           <h2 className="text-lg sm:text-xl font-black text-indigo-900 tracking-tight">Recent Progress</h2>
           <span className="bg-emerald-100 text-emerald-600 px-2 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
-            {history.length} Session Recent
+            {successfulHistory.length + unsuccessfulHistory.length} Total
           </span>
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-3">
-          {history.map((h, i) => (
-            <div key={`${h.id}-${i}`} className="bg-white p-2 sm:p-3 md:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 text-center animate-in slide-in-from-bottom-2 duration-300 hover:border-indigo-200 transition-colors cursor-default overflow-hidden">
-              <p className="georgian-text text-lg sm:text-xl font-bold text-indigo-950 leading-tight truncate">{h.georgian}</p>
-              <p className="text-[8px] sm:text-[9px] text-slate-300 font-black uppercase mt-0.5 sm:mt-1 tracking-tighter truncate">{h.transcription}</p>
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
+          {/* Successful Column */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+              <h3 className="text-sm sm:text-base font-black text-emerald-700 uppercase tracking-widest">Successful</h3>
+              <span className="text-[10px] text-emerald-600 font-bold">({successfulHistory.length})</span>
             </div>
-          ))}
-          {history.length === 0 && (
-            <div className="col-span-full py-8 sm:py-12 md:py-16 text-center text-slate-300 font-black uppercase tracking-[0.3em] text-[9px] sm:text-[10px] border-2 sm:border-4 border-dotted border-slate-100 rounded-2xl sm:rounded-[3rem]">
-              Successes will appear here
+            <div className="flex flex-col gap-2 sm:gap-3">
+              {successfulHistory.map((h, i) => (
+                <div
+                  key={`success-${h.id}-${i}`}
+                  className="bg-emerald-50 p-2 sm:p-3 rounded-xl shadow-sm border-2 border-emerald-200 text-center animate-in slide-in-from-bottom-2 duration-300 hover:border-emerald-300 transition-colors cursor-default"
+                >
+                  <p className="georgian-text text-lg sm:text-xl font-bold text-emerald-950 leading-tight break-words">
+                    {h.georgian}
+                  </p>
+                  <p className="text-[8px] sm:text-[9px] text-emerald-400 font-black uppercase mt-0.5 sm:mt-1 tracking-tighter">
+                    {h.transcription}
+                  </p>
+                </div>
+              ))}
+              {successfulHistory.length === 0 && (
+                <div className="col-span-full py-6 sm:py-8 text-center text-emerald-300 font-black uppercase tracking-[0.2em] text-[9px] sm:text-[10px] border-2 border-dotted border-emerald-200 rounded-xl">
+                  None yet
+                </div>
+              )}
             </div>
-          )}
+          </div>
+          
+          {/* Unsuccessful Column */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+              <h3 className="text-sm sm:text-base font-black text-amber-700 uppercase tracking-widest">Needs Review</h3>
+              <span className="text-[10px] text-amber-600 font-bold">({unsuccessfulHistory.length})</span>
+            </div>
+            <div className="flex flex-col gap-2 sm:gap-3">
+              {unsuccessfulHistory.map((h, i) => (
+                <div
+                  key={`unsuccess-${h.id}-${i}`}
+                  className="bg-amber-50 p-2 sm:p-3 rounded-xl shadow-sm border-2 border-amber-200 text-center animate-in slide-in-from-bottom-2 duration-300 hover:border-amber-300 transition-colors cursor-default"
+                >
+                  <p className="georgian-text text-lg sm:text-xl font-bold text-amber-950 leading-tight break-words">
+                    {h.georgian}
+                  </p>
+                  <p className="text-[8px] sm:text-[9px] text-amber-400 font-black uppercase mt-0.5 sm:mt-1 tracking-tighter">
+                    {h.transcription}
+                  </p>
+                </div>
+              ))}
+              {unsuccessfulHistory.length === 0 && (
+                <div className="col-span-full py-6 sm:py-8 text-center text-amber-300 font-black uppercase tracking-[0.2em] text-[9px] sm:text-[10px] border-2 border-dotted border-amber-200 rounded-xl">
+                  None yet
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
