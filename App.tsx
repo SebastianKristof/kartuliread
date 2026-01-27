@@ -230,7 +230,10 @@ const App: React.FC = () => {
     setShowTranscription(false);
 
     if (nextCount >= SUCCESS_THRESHOLD) {
-      // Level complete in normal mode.
+      // Level complete - clear history for review/next level
+      setSuccessfulHistory([]);
+      setUnsuccessfulHistory([]);
+
       // If there are failed items, go into level review first; congratulate after review.
       setFailedQueue(currentQueue => {
         if (currentQueue.length > 0) {
@@ -282,6 +285,10 @@ const App: React.FC = () => {
       setShowTranscription(false);
 
       if (nextCount >= SUCCESS_THRESHOLD) {
+        // Level complete - clear history for review/next level
+        setSuccessfulHistory([]);
+        setUnsuccessfulHistory([]);
+
         // If we finish the level, show any remaining failed exercises
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
@@ -316,6 +323,8 @@ const App: React.FC = () => {
     setFailedQueue([]);
     setIsInRepetitionMode(false);
     setRepetitionIndex(0);
+    setSuccessfulHistory([]);
+    setUnsuccessfulHistory([]);
   };
 
   const handleResetLevel = () => {
@@ -328,6 +337,8 @@ const App: React.FC = () => {
     setFailedQueue([]);
     setIsInRepetitionMode(false);
     setRepetitionIndex(0);
+    setSuccessfulHistory([]);
+    setUnsuccessfulHistory([]);
     setShowResetModal(false);
   };
 
@@ -470,14 +481,16 @@ const App: React.FC = () => {
                 <span>Overall Level Mastery</span>
                 <span>{successCount} / {SUCCESS_THRESHOLD}</span>
               </div>
-              {isInRepetitionMode && failedQueue.length > 0 && (
-                <div className="mt-2 sm:mt-3 text-center">
-                  <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
-                    <i className="fas fa-redo text-amber-700"></i>
-                    <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
+              <div className="h-8 sm:h-10 mt-1 flex flex-col justify-center">
+                {isInRepetitionMode && failedQueue.length > 0 ? (
+                  <div className="text-center animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
+                      <i className="fas fa-redo text-amber-700"></i>
+                      <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null}
+              </div>
             </div>
 
             {/* Exercise Area */}
@@ -490,12 +503,16 @@ const App: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="min-h-[70px] sm:min-h-[80px] md:min-h-[90px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-5 border border-slate-100">
+                  <div className="h-[90px] sm:h-[100px] md:h-[110px] lg:h-[120px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-5 border border-slate-100">
                     {showTranscription ? (
                       <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-1 sm:space-y-2">
                         <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
                         {currentExercise.meaning && (
-                          <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">"{currentExercise.meaning}"</p>
+                          <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">
+                            {/syllable|letter|root|suffix/i.test(currentExercise.meaning)
+                              ? currentExercise.meaning
+                              : `"${currentExercise.meaning}"`}
+                          </p>
                         )}
                       </div>
                     ) : (
@@ -563,10 +580,9 @@ const App: React.FC = () => {
                   {unsuccessfulHistory.map((h, i) => (
                     <div
                       key={`unsuccess-${h.id}-${i}`}
-                      className="bg-amber-50 p-2 rounded-xl border-2 border-amber-200 text-center animate-in slide-in-from-right-2 duration-300"
+                      className="bg-amber-50 py-1.5 px-2 rounded-lg border border-amber-200 text-center animate-in slide-in-from-right-2 duration-300"
                     >
                       <p className="georgian-text text-base font-bold text-amber-950 leading-tight">{h.georgian}</p>
-                      <p className="text-[8px] text-amber-400 font-black uppercase mt-0.5">{h.transcription}</p>
                     </div>
                   ))}
                 </div>
@@ -583,10 +599,9 @@ const App: React.FC = () => {
                 {successfulHistory.map((h, i) => (
                   <div
                     key={`success-${h.id}-${i}`}
-                    className="bg-emerald-50 p-2 rounded-xl border-2 border-emerald-200 text-center animate-in slide-in-from-right-2 duration-300"
+                    className="bg-emerald-50 py-1.5 px-2 rounded-lg border border-emerald-200 text-center animate-in slide-in-from-right-2 duration-300"
                   >
                     <p className="georgian-text text-base font-bold text-emerald-950 leading-tight">{h.georgian}</p>
-                    <p className="text-[8px] text-emerald-400 font-black uppercase mt-0.5">{h.transcription}</p>
                   </div>
                 ))}
                 {successfulHistory.length === 0 && (
