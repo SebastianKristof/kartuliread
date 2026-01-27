@@ -1,21 +1,83 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Exercise, SUCCESS_THRESHOLD, BATCH_SIZE } from './types';
 import { ProgressBar } from './components/ProgressBar';
 import { EXERCISES_DATA } from './data/exercisesData';
 
+const STORAGE_KEY = 'kartuliread_progress';
+const STORAGE_LEVEL_KEY = 'kartuliread_current_level';
+
+// Load progress from localStorage
+const loadProgress = (): { [key: number]: number } => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure all 8 levels exist
+      const progress: { [key: number]: number } = {};
+      for (let i = 1; i <= 8; i++) {
+        progress[i] = parsed[i] || 0;
+      }
+      return progress;
+    }
+  } catch (e) {
+    console.error('Failed to load progress:', e);
+  }
+  return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
+};
+
+// Save progress to localStorage
+const saveProgress = (progress: { [key: number]: number }) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  } catch (e) {
+    console.error('Failed to save progress:', e);
+  }
+};
+
+// Load current level from localStorage
+const loadCurrentLevel = (): number => {
+  try {
+    const saved = localStorage.getItem(STORAGE_LEVEL_KEY);
+    if (saved) {
+      const level = parseInt(saved, 10);
+      if (level >= 1 && level <= 8) return level;
+    }
+  } catch (e) {
+    console.error('Failed to load current level:', e);
+  }
+  return 1;
+};
+
+// Save current level to localStorage
+const saveCurrentLevel = (level: number) => {
+  try {
+    localStorage.setItem(STORAGE_LEVEL_KEY, level.toString());
+  } catch (e) {
+    console.error('Failed to save current level:', e);
+  }
+};
+
 const App: React.FC = () => {
-  // Global progress across levels
-  const [levelProgress, setLevelProgress] = useState<{ [key: number]: number }>({
-    1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0
-  });
-  const [currentLevel, setCurrentLevel] = useState(1);
+  // Global progress across levels - load from localStorage on mount
+  const [levelProgress, setLevelProgress] = useState<{ [key: number]: number }>(() => loadProgress());
+  const [currentLevel, setCurrentLevel] = useState(() => loadCurrentLevel());
   const [showTranscription, setShowTranscription] = useState(false);
   const [history, setHistory] = useState<Exercise[]>([]);
   // Queue for failed exercises to repeat at end of block
   const [failedQueue, setFailedQueue] = useState<Exercise[]>([]);
   const [isInRepetitionMode, setIsInRepetitionMode] = useState(false);
   const [repetitionIndex, setRepetitionIndex] = useState(0);
+
+  // Save progress to localStorage whenever it changes
+  useEffect(() => {
+    saveProgress(levelProgress);
+  }, [levelProgress]);
+
+  // Save current level to localStorage whenever it changes
+  useEffect(() => {
+    saveCurrentLevel(currentLevel);
+  }, [currentLevel]);
 
   // Current level total progress
   const successCount = levelProgress[currentLevel] || 0;
@@ -101,9 +163,7 @@ const App: React.FC = () => {
             setIsInRepetitionMode(false);
             setShowTranscription(false);
             // Check if we need to start a new block
-            if (successCount % BATCH_SIZE === 0 && successCount < SUCCESS_THRESHOLD) {
-              alert(`Group complete! You've finished a group of 10.`);
-            }
+            // (No notification needed - progress area shows status)
             return [];
           } else {
             setShowTranscription(false);
@@ -132,8 +192,6 @@ const App: React.FC = () => {
         if (currentQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
-        } else {
-          alert(`Level ${currentLevel} mastered (50/50)! Excellent work.`);
         }
         return currentQueue;
       });
@@ -143,9 +201,6 @@ const App: React.FC = () => {
         if (currentQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
-          alert(`Group complete! Reviewing ${currentQueue.length} item(s) you couldn't read.`);
-        } else {
-          alert(`Group complete! You've finished a group of 10.`);
         }
         return currentQueue;
       });
@@ -170,17 +225,12 @@ const App: React.FC = () => {
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
-        } else {
-          alert(`Level ${currentLevel} mastered (50/50)! Excellent work.`);
         }
       } else if (nextCount % BATCH_SIZE === 0) {
         // Block complete - check if there are failed exercises to repeat
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
-          alert(`Group complete! Reviewing ${updatedQueue.length} item(s) you couldn't read.`);
-        } else {
-          alert(`Group complete! You've finished a group of 10.`);
         }
       }
       
@@ -201,6 +251,16 @@ const App: React.FC = () => {
     setRepetitionIndex(0);
   };
 
+  const handleResetLevel = () => {
+    if (window.confirm(`Reset progress for Level ${currentLevel}? This cannot be undone.`)) {
+      setLevelProgress(prev => ({ ...prev, [currentLevel]: 0 }));
+      setShowTranscription(false);
+      setFailedQueue([]);
+      setIsInRepetitionMode(false);
+      setRepetitionIndex(0);
+    }
+  };
+
   const currentGroup = Math.floor(successCount / BATCH_SIZE) + 1;
   const groupProgress = successCount % BATCH_SIZE;
 
@@ -208,12 +268,12 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8">
       <header className="w-full max-w-2xl mb-3 sm:mb-4 md:mb-6 text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900 mb-1 sm:mb-2">KartuliRead</h1>
-        <p className="text-xs sm:text-sm md:text-base text-slate-500 font-medium tracking-tight">Mastering {currentLevel + 1}-letter combinations</p>
+        <p className="text-xs sm:text-sm md:text-base text-slate-500 font-medium tracking-tight">Mastering {currentLevel}-letter combinations</p>
       </header>
 
       {/* Level Selector - Always accessible */}
-      <div className="w-full max-w-2xl mb-4 sm:mb-6 md:mb-8 grid grid-cols-3 sm:grid-cols-6 gap-1 sm:gap-1.5">
-        {[1, 2, 3, 4, 5, 6].map(l => (
+      <div className="w-full max-w-2xl mb-4 sm:mb-6 md:mb-8 grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-1.5">
+        {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
           <button
             key={l}
             onClick={() => handleLevelChange(l)}
@@ -234,8 +294,19 @@ const App: React.FC = () => {
         {/* Progress Header */}
         <div className="bg-indigo-50/30 p-3 sm:p-4 md:p-6 border-b border-indigo-100">
           <div className="flex justify-between items-end mb-2 sm:mb-3 md:mb-4 px-1 sm:px-2">
-            <div>
-              <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Set Progress</h2>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Set Progress</h2>
+                {successCount > 0 && (
+                  <button
+                    onClick={handleResetLevel}
+                    className="text-slate-400 hover:text-red-600 transition-colors"
+                    title={`Reset Level ${currentLevel} progress`}
+                  >
+                    <i className="fas fa-undo text-[10px] sm:text-xs"></i>
+                  </button>
+                )}
+              </div>
               <p className="text-[9px] sm:text-[10px] text-indigo-400 font-bold uppercase tracking-[0.2em]">
                 Group {Math.min(currentGroup, 5)} of 5 • Level {currentLevel}
               </p>
@@ -251,6 +322,14 @@ const App: React.FC = () => {
             <span>Overall Level Mastery</span>
             <span>{successCount} / {SUCCESS_THRESHOLD}</span>
           </div>
+          {isInRepetitionMode && failedQueue.length > 0 && (
+            <div className="mt-3 sm:mt-4 text-center">
+              <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
+                <i className="fas fa-redo text-amber-700"></i>
+                <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Exercise Area */}
@@ -295,13 +374,6 @@ const App: React.FC = () => {
                   I Read It!
                 </button>
               </div>
-              {isInRepetitionMode && (
-                <div className="mt-2 sm:mt-3 text-center">
-                  <span className="bg-amber-100 text-amber-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
-                    Review: {repetitionIndex + 1} / {failedQueue.length}
-                  </span>
-                </div>
-              )}
             </div>
           ) : (
             <div className="text-center p-6 sm:p-8 md:p-12 animate-in zoom-in duration-500">
@@ -312,7 +384,7 @@ const App: React.FC = () => {
                 onClick={() => handleLevelChange(currentLevel + 1 <= 6 ? currentLevel + 1 : 1)}
                 className="bg-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-[2rem] font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] sm:text-xs"
               >
-                Go to {currentLevel + 1 <= 6 ? `Level ${currentLevel + 1}` : "Level 1"}
+                Go to {currentLevel + 1 <= 8 ? `Level ${currentLevel + 1}` : "Level 1"}
               </button>
             </div>
           )}
