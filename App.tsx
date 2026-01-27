@@ -326,6 +326,17 @@ const App: React.FC = () => {
       return [currentExercise, ...prev].slice(0, 20);
     });
 
+    if (isInRepetitionMode) {
+      // If we're already in review mode, move the item to the end of the queue to repeat it again
+      setFailedQueue(prev => {
+        const filtered = prev.filter(ex => ex.id !== currentExercise.id);
+        return [...filtered, currentExercise];
+      });
+      setShowTranscription(false);
+      // We don't increment repetitionIndex because the next item in the queue (now at index 0) is what we want
+      return;
+    }
+
     // Add to failed queue if not already there, then move to next exercise
     setFailedQueue(prev => {
       const alreadyExists = prev.find(f => f.id === currentExercise.id);
@@ -548,10 +559,10 @@ const App: React.FC = () => {
                           onClick={() => handleSetChange(setNum)}
                           disabled={isMastered}
                           className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isMastered
-                              ? 'bg-emerald-50 text-emerald-500 border-emerald-100 opacity-80 cursor-default'
-                              : isCurrent
-                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm scale-110'
-                                : 'bg-white text-indigo-300 border-indigo-50 hover:border-indigo-200'
+                            ? 'bg-emerald-50 text-emerald-500 border-emerald-100 opacity-80 cursor-default'
+                            : isCurrent
+                              ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm scale-110'
+                              : 'bg-white text-indigo-300 border-indigo-50 hover:border-indigo-200'
                             }`}
                         >
                           {isMastered ? (
