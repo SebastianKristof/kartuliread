@@ -154,28 +154,28 @@ const App: React.FC = () => {
     // Level 1-2: largest, Level 3-4: medium, Level 5-6: smaller to fit width
 
     if (len <= 3) {
-      // Very short words - largest size
-      return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[12rem]";
+      // Very short words - balanced for desktop
+      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl";
     } else if (len <= 5) {
       // Short words
-      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[10rem]";
+      return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl";
     } else if (len <= 7) {
       // Medium words - scale by level
       if (currentLevel <= 2) {
-        return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl";
+        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
       } else if (currentLevel <= 4) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl";
+        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
       } else {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl";
+        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
       }
     } else {
-      // Long words - scale significantly by level to fit width
+      // Long words - scale significantly
       if (currentLevel <= 2) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl";
+        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
       } else if (currentLevel <= 4) {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl";
+        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
       } else {
-        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl";
+        return "text-xl sm:text-2xl md:text-3xl lg:text-4xl";
       }
     }
   }, [currentExercise, currentLevel]);
@@ -349,7 +349,7 @@ const App: React.FC = () => {
   }, [congratulationsMessage]);
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col items-center p-2 sm:p-3 md:p-4 lg:p-5">
       {/* Reset Confirmation Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -413,203 +413,195 @@ const App: React.FC = () => {
           </div>
         )
       )}
-      <header className="w-full max-w-2xl mb-3 sm:mb-4 md:mb-6 text-center">
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900 mb-1 sm:mb-2">KartuliRead</h1>
-        <p className="text-xs sm:text-sm md:text-base text-slate-500 font-medium tracking-tight">Mastering {currentLevel}-letter combinations</p>
+      <header className="w-full max-w-5xl mb-2 sm:mb-4 md:mb-6 text-center">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900">KartuliRead</h1>
       </header>
 
-      {/* Level Selector - Always accessible */}
-      <div className="w-full max-w-2xl mb-4 sm:mb-6 md:mb-8 grid grid-cols-4 sm:grid-cols-8 gap-1 sm:gap-1.5">
-        {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
-          <button
-            key={l}
-            onClick={() => handleLevelChange(l)}
-            className={`px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${currentLevel === l
-              ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105 z-10'
-              : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
-              }`}
-          >
-            <span className="text-[8px] sm:text-[9px] uppercase opacity-70">Lvl</span>
-            <span className="text-sm sm:text-base leading-none">{l}</span>
-            <span className="text-[7px] sm:text-[8px] mt-0.5 opacity-60 font-black">{levelProgress[l]}/50</span>
-          </button>
-        ))}
-      </div>
-
-      <main className="w-full max-w-2xl bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50 border-t-4 sm:border-t-8 border-t-indigo-500">
-        {/* Progress Header */}
-        <div className="bg-indigo-50/30 p-3 sm:p-4 md:p-6 border-b border-indigo-100">
-          <div className="flex justify-between items-end mb-2 sm:mb-3 md:mb-4 px-1 sm:px-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Set Progress</h2>
-                {successCount > 0 && (
-                  <button
-                    onClick={handleResetLevel}
-                    className="text-slate-400 hover:text-red-600 transition-colors"
-                    title={`Reset Level ${currentLevel} progress`}
-                  >
-                    <i className="fas fa-undo text-[10px] sm:text-xs"></i>
-                  </button>
-                )}
-              </div>
-              <p className="text-[9px] sm:text-[10px] text-indigo-400 font-bold uppercase tracking-[0.2em]">
-                Group {Math.min(currentGroup, 5)} of 5 • Level {currentLevel}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl sm:text-3xl font-black text-indigo-600">{groupProgress}</span>
-              <span className="text-indigo-300 font-bold ml-1 text-sm sm:text-base">/ {BATCH_SIZE}</span>
-            </div>
-          </div>
-          <ProgressBar current={groupProgress} total={BATCH_SIZE} />
-
-          <div className="mt-2 sm:mt-3 md:mt-4 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2">
-            <span>Overall Level Mastery</span>
-            <span>{successCount} / {SUCCESS_THRESHOLD}</span>
-          </div>
-          {isInRepetitionMode && failedQueue.length > 0 && (
-            <div className="mt-3 sm:mt-4 text-center">
-              <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
-                <i className="fas fa-redo text-amber-700"></i>
-                <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
-              </div>
-            </div>
-          )}
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-start justify-center gap-4 lg:gap-6 px-2 sm:px-4">
+        {/* Left Sidebar: Level Selector */}
+        <div className="w-full lg:w-24 grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-1 gap-1.5 order-1">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
+            <button
+              key={l}
+              onClick={() => handleLevelChange(l)}
+              className={`px-1 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${currentLevel === l
+                ? 'bg-indigo-600 text-white border-indigo-700 shadow-md lg:scale-105 z-10'
+                : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
+                }`}
+            >
+              <span className="text-[7px] sm:text-[8px] lg:text-[9px] uppercase opacity-70">Lvl</span>
+              <span className="text-sm sm:text-base leading-none">{l}</span>
+              <span className="text-[6px] sm:text-[7px] lg:text-[8px] mt-0.5 opacity-60 font-black">{levelProgress[l]}/50</span>
+            </button>
+          ))}
         </div>
 
-        {/* Exercise Area */}
-        <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col items-center min-h-[350px] sm:min-h-[40vh] md:min-h-[45vh] lg:min-h-[45vh] max-h-[50vh] justify-center relative bg-white">
-          {currentExercise ? (
-            <div className="w-full text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-12 animate-in fade-in zoom-in duration-500">
-              <div className="flex flex-col items-center justify-center min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px] w-full px-2 sm:px-4">
-                <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
-                  {currentExercise.georgian}
-                </span>
-              </div>
-
-              <div className="min-h-[80px] sm:min-h-[95px] md:min-h-[110px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-6 border border-slate-100">
-                {showTranscription ? (
-                  <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-1 sm:space-y-2">
-                    <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
-                    {currentExercise.meaning && (
-                      <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">"{currentExercise.meaning}"</p>
+        {/* Center: Main Exercise Area */}
+        <div className="w-full lg:flex-1 max-w-2xl order-2">
+          <main className="w-full bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50 border-t-4 sm:border-t-8 border-t-indigo-500">
+            {/* Progress Header */}
+            <div className="bg-indigo-50/30 p-2 sm:p-3 md:p-4 border-b border-indigo-100">
+              <div className="flex justify-between items-end mb-1 sm:mb-2 md:mb-3 px-1 sm:px-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Set Progress</h2>
+                    {successCount > 0 && (
+                      <button
+                        onClick={handleResetLevel}
+                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        title={`Reset Level ${currentLevel} progress`}
+                      >
+                        <i className="fas fa-undo text-[10px] sm:text-xs"></i>
+                      </button>
                     )}
                   </div>
-                ) : (
+                  <p className="text-[9px] sm:text-[10px] text-indigo-400 font-bold uppercase tracking-[0.2em]">
+                    Group {Math.min(currentGroup, 5)} of 5 • Level {currentLevel}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl sm:text-3xl font-black text-indigo-600">{groupProgress}</span>
+                  <span className="text-indigo-300 font-bold ml-1 text-sm sm:text-base">/ {BATCH_SIZE}</span>
+                </div>
+              </div>
+              <ProgressBar current={groupProgress} total={BATCH_SIZE} />
+
+              <div className="mt-1.5 sm:mt-2 md:mt-3 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2">
+                <span>Overall Level Mastery</span>
+                <span>{successCount} / {SUCCESS_THRESHOLD}</span>
+              </div>
+              {isInRepetitionMode && failedQueue.length > 0 && (
+                <div className="mt-2 sm:mt-3 text-center">
+                  <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border-2 border-amber-300">
+                    <i className="fas fa-redo text-amber-700"></i>
+                    <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Exercise Area */}
+            <div className="p-4 sm:p-5 md:p-6 lg:p-8 flex flex-col items-center justify-center relative bg-white">
+              {currentExercise ? (
+                <div className="w-full text-center space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6 animate-in fade-in zoom-in duration-500">
+                  <div className="flex flex-col items-center justify-center min-h-[140px] sm:min-h-[160px] md:min-h-[180px] lg:min-h-[200px] w-full px-2 sm:px-4">
+                    <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
+                      {currentExercise.georgian}
+                    </span>
+                  </div>
+
+                  <div className="min-h-[70px] sm:min-h-[80px] md:min-h-[90px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-3 sm:p-4 md:p-5 border border-slate-100">
+                    {showTranscription ? (
+                      <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-1 sm:space-y-2">
+                        <p className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
+                        {currentExercise.meaning && (
+                          <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">"{currentExercise.meaning}"</p>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleReveal}
+                        className="text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group"
+                      >
+                        Tap to reveal transcription
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 w-full pt-2 sm:pt-3 md:pt-4">
+                    <button
+                      onClick={handleCouldntRead}
+                      className="py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 uppercase tracking-widest text-[10px] sm:text-xs"
+                    >
+                      Couldn't Read
+                    </button>
+                    <button
+                      onClick={handleCorrect}
+                      className="py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-xl uppercase tracking-widest text-[10px] sm:text-xs"
+                    >
+                      I Read It!
+                    </button>
+                  </div>
+                </div>
+              ) : isLevelMastered ? (
+                <div className="text-center p-6 sm:p-8 md:p-12 animate-in zoom-in duration-500">
+                  <i className="fas fa-check-circle text-emerald-500 text-4xl sm:text-5xl md:text-6xl mb-4 sm:mb-6"></i>
+                  <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Level Complete!</h3>
+                  <p className="text-sm sm:text-base text-slate-500 font-medium mb-6 sm:mb-8">
+                    You've mastered all {SUCCESS_THRESHOLD} items in this level.
+                  </p>
                   <button
-                    onClick={handleReveal}
-                    className="text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group"
+                    onClick={() => handleLevelChange(currentLevel + 1 <= 6 ? currentLevel + 1 : 1)}
+                    className="bg-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-[2rem] font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] sm:text-xs"
                   >
-                    Tap to reveal transcription
+                    Go to {currentLevel + 1 <= 8 ? `Level ${currentLevel + 1}` : "Level 1"}
                   </button>
+                </div>
+              ) : null}
+            </div>
+          </main>
+        </div>
+
+        {/* Right Sidebar: Recent Progress */}
+        <aside className="w-full lg:w-72 mt-6 lg:mt-0 lg:max-h-[85vh] lg:overflow-y-auto lg:pr-2 order-3">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-black text-indigo-900 tracking-tight">Recent</h2>
+            <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
+              {successfulHistory.length + unsuccessfulHistory.length}
+            </span>
+          </div>
+
+          <div className="space-y-6">
+            {/* Needs Review Column */}
+            {unsuccessfulHistory.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Needs Review</h3>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                  {unsuccessfulHistory.map((h, i) => (
+                    <div
+                      key={`unsuccess-${h.id}-${i}`}
+                      className="bg-amber-50 p-2 rounded-xl border-2 border-amber-200 text-center animate-in slide-in-from-right-2 duration-300"
+                    >
+                      <p className="georgian-text text-base font-bold text-amber-950 leading-tight">{h.georgian}</p>
+                      <p className="text-[8px] text-amber-400 font-black uppercase mt-0.5">{h.transcription}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Successful Column */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                <h3 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Successful</h3>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                {successfulHistory.map((h, i) => (
+                  <div
+                    key={`success-${h.id}-${i}`}
+                    className="bg-emerald-50 p-2 rounded-xl border-2 border-emerald-200 text-center animate-in slide-in-from-right-2 duration-300"
+                  >
+                    <p className="georgian-text text-base font-bold text-emerald-950 leading-tight">{h.georgian}</p>
+                    <p className="text-[8px] text-emerald-400 font-black uppercase mt-0.5">{h.transcription}</p>
+                  </div>
+                ))}
+                {successfulHistory.length === 0 && (
+                  <div className="py-4 text-center text-emerald-300 font-black uppercase tracking-widest text-[9px] border-2 border-dotted border-emerald-100 rounded-xl">
+                    None yet
+                  </div>
                 )}
               </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 w-full pt-2 sm:pt-3 md:pt-4">
-                <button
-                  onClick={handleCouldntRead}
-                  className="py-4 sm:py-5 md:py-6 px-3 sm:px-4 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 uppercase tracking-widest text-[10px] sm:text-xs"
-                >
-                  Couldn't Read
-                </button>
-                <button
-                  onClick={handleCorrect}
-                  className="py-4 sm:py-5 md:py-6 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-xl uppercase tracking-widest text-[10px] sm:text-xs"
-                >
-                  I Read It!
-                </button>
-              </div>
-            </div>
-          ) : isLevelMastered ? (
-            <div className="text-center p-6 sm:p-8 md:p-12 animate-in zoom-in duration-500">
-              <i className="fas fa-check-circle text-emerald-500 text-4xl sm:text-5xl md:text-6xl mb-4 sm:mb-6"></i>
-              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Level Complete!</h3>
-              <p className="text-sm sm:text-base text-slate-500 font-medium mb-6 sm:mb-8">
-                You've mastered all {SUCCESS_THRESHOLD} items in this level.
-              </p>
-              <button
-                onClick={() => handleLevelChange(currentLevel + 1 <= 6 ? currentLevel + 1 : 1)}
-                className="bg-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-[2rem] font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] sm:text-xs"
-              >
-                Go to {currentLevel + 1 <= 8 ? `Level ${currentLevel + 1}` : "Level 1"}
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </main>
-
-      {/* History Grid - Two Columns */}
-      <section className="w-full max-w-2xl mt-6 sm:mt-8 md:mt-12 mb-8 sm:mb-12 md:mb-16 px-2">
-        <div className="flex justify-between items-center mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-black text-indigo-900 tracking-tight">Recent Progress</h2>
-          <span className="bg-emerald-100 text-emerald-600 px-2 sm:px-4 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
-            {successfulHistory.length + unsuccessfulHistory.length} Total
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6">
-          {/* Successful Column */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-              <h3 className="text-sm sm:text-base font-black text-emerald-700 uppercase tracking-widest">Successful</h3>
-              <span className="text-[10px] text-emerald-600 font-bold">({successfulHistory.length})</span>
-            </div>
-            <div className="flex flex-col gap-2 sm:gap-3">
-              {successfulHistory.map((h, i) => (
-                <div
-                  key={`success-${h.id}-${i}`}
-                  className="bg-emerald-50 p-2 sm:p-3 rounded-xl shadow-sm border-2 border-emerald-200 text-center animate-in slide-in-from-bottom-2 duration-300 hover:border-emerald-300 transition-colors cursor-default"
-                >
-                  <p className="georgian-text text-lg sm:text-xl font-bold text-emerald-950 leading-tight break-words">
-                    {h.georgian}
-                  </p>
-                  <p className="text-[8px] sm:text-[9px] text-emerald-400 font-black uppercase mt-0.5 sm:mt-1 tracking-tighter">
-                    {h.transcription}
-                  </p>
-                </div>
-              ))}
-              {successfulHistory.length === 0 && (
-                <div className="col-span-full py-6 sm:py-8 text-center text-emerald-300 font-black uppercase tracking-[0.2em] text-[9px] sm:text-[10px] border-2 border-dotted border-emerald-200 rounded-xl">
-                  None yet
-                </div>
-              )}
             </div>
           </div>
+        </aside>
+      </div>
 
-          {/* Unsuccessful Column */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-              <h3 className="text-sm sm:text-base font-black text-amber-700 uppercase tracking-widest">Needs Review</h3>
-              <span className="text-[10px] text-amber-600 font-bold">({unsuccessfulHistory.length})</span>
-            </div>
-            <div className="flex flex-col gap-2 sm:gap-3">
-              {unsuccessfulHistory.map((h, i) => (
-                <div
-                  key={`unsuccess-${h.id}-${i}`}
-                  className="bg-amber-50 p-2 sm:p-3 rounded-xl shadow-sm border-2 border-amber-200 text-center animate-in slide-in-from-bottom-2 duration-300 hover:border-amber-300 transition-colors cursor-default"
-                >
-                  <p className="georgian-text text-lg sm:text-xl font-bold text-amber-950 leading-tight break-words">
-                    {h.georgian}
-                  </p>
-                  <p className="text-[8px] sm:text-[9px] text-amber-400 font-black uppercase mt-0.5 sm:mt-1 tracking-tighter">
-                    {h.transcription}
-                  </p>
-                </div>
-              ))}
-              {unsuccessfulHistory.length === 0 && (
-                <div className="col-span-full py-6 sm:py-8 text-center text-amber-300 font-black uppercase tracking-[0.2em] text-[9px] sm:text-[10px] border-2 border-dotted border-amber-200 rounded-xl">
-                  None yet
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="w-full max-w-2xl text-center border-t border-slate-200 py-6 sm:py-8 md:py-10 opacity-50">
-        <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1 sm:mb-2">KartuliRead System</p>
+      <footer className="w-full max-w-5xl text-center border-t border-slate-200 mt-8 py-6 opacity-50">
+        <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">KartuliRead System</p>
         <p className="text-[8px] sm:text-[9px] font-bold text-slate-300 uppercase tracking-widest">50 Items Per Level • Group Shuffle Active</p>
       </footer>
     </div>
