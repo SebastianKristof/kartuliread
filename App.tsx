@@ -327,6 +327,17 @@ const App: React.FC = () => {
     setUnsuccessfulHistory([]);
   };
 
+  const handleSetChange = (setNum: number) => {
+    const newProgress = (setNum - 1) * BATCH_SIZE;
+    setLevelProgress(prev => ({ ...prev, [currentLevel]: newProgress }));
+    setSuccessfulHistory([]);
+    setUnsuccessfulHistory([]);
+    setFailedQueue([]);
+    setIsInRepetitionMode(false);
+    setRepetitionIndex(0);
+    setShowTranscription(false);
+  };
+
   const handleResetLevel = () => {
     setShowResetModal(true);
   };
@@ -364,27 +375,27 @@ const App: React.FC = () => {
       {/* Reset Confirmation Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-red-500 animate-in zoom-in duration-300">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-indigo-100 animate-in zoom-in duration-300">
             <div className="text-center">
               <div className="mb-4">
-                <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-                  <i className="fas fa-exclamation-triangle text-red-600 text-3xl"></i>
+                <div className="w-16 h-16 mx-auto bg-indigo-50 rounded-full flex items-center justify-center">
+                  <i className="fas fa-undo text-indigo-500 text-3xl"></i>
                 </div>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Reset Level {currentLevel}?</h3>
-              <p className="text-sm sm:text-base text-slate-600 mb-6">This will reset all progress for Level {currentLevel}. This cannot be undone.</p>
+              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-2">Restart Level {currentLevel}?</h3>
+              <p className="text-sm sm:text-base text-slate-500 mb-6">Want to start this level from the beginning? This will clear your current progress.</p>
               <div className="flex gap-3 sm:gap-4 justify-center">
                 <button
                   onClick={() => setShowResetModal(false)}
-                  className="px-6 sm:px-8 py-2 sm:py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
                 >
-                  Cancel
+                  Go Back
                 </button>
                 <button
                   onClick={confirmResetLevel}
-                  className="px-6 sm:px-8 py-2 sm:py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+                  className="px-6 sm:px-8 py-2 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm shadow-lg shadow-indigo-100"
                 >
-                  Reset
+                  Restart
                 </button>
               </div>
             </div>
@@ -455,20 +466,46 @@ const App: React.FC = () => {
               <div className="flex justify-between items-end mb-1 sm:mb-2 md:mb-3 px-1 sm:px-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Set Progress</h2>
+                    <h2 className="text-indigo-900 font-black text-base sm:text-lg md:text-xl">Level Progress</h2>
                     {successCount > 0 && (
                       <button
                         onClick={handleResetLevel}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        className="bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 p-1.5 rounded-lg transition-all flex items-center gap-1.5"
                         title={`Reset Level ${currentLevel} progress`}
                       >
                         <i className="fas fa-undo text-[10px] sm:text-xs"></i>
+                        <span className="text-[9px] font-black uppercase tracking-tighter hidden sm:inline">Restart</span>
                       </button>
                     )}
                   </div>
-                  <p className="text-[9px] sm:text-[10px] text-indigo-400 font-bold uppercase tracking-[0.2em]">
-                    Group {Math.min(currentGroup, 5)} of 5 • Level {currentLevel}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[1, 2, 3, 4, 5].map(setNum => {
+                      const isCompleted = successCount >= setNum * BATCH_SIZE;
+                      const isCurrent = currentGroup === setNum;
+                      return (
+                        <button
+                          key={setNum}
+                          onClick={() => handleSetChange(setNum)}
+                          disabled={isCompleted}
+                          className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isCompleted
+                              ? 'bg-emerald-50 text-emerald-500 border-emerald-100 opacity-80 cursor-default'
+                              : isCurrent
+                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm scale-110'
+                                : 'bg-white text-indigo-300 border-indigo-50 hover:border-indigo-200'
+                            }`}
+                        >
+                          {isCompleted ? (
+                            <div className="flex items-center gap-1">
+                              <i className="fas fa-check-circle"></i>
+                              <span>Set {setNum}</span>
+                            </div>
+                          ) : (
+                            `Set ${setNum}`
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-2xl sm:text-3xl font-black text-indigo-600">{groupProgress}</span>
