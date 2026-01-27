@@ -676,26 +676,29 @@ const App: React.FC = () => {
             </span>
           </div>
 
-          <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 lg:gap-4">
             {/* Needs Review Column */}
-            {unsuccessfulHistory.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                  <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Needs Review</h3>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
-                  {unsuccessfulHistory.map((h, i) => (
-                    <div
-                      key={`unsuccess-${h.id}-${i}`}
-                      className="bg-amber-50 py-1.5 px-2 rounded-lg border border-amber-200 text-center animate-in slide-in-from-right-2 duration-300"
-                    >
-                      <p className="georgian-text text-base font-bold text-amber-950 leading-tight">{h.georgian}</p>
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                <h3 className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Needs Review</h3>
               </div>
-            )}
+              <div className="grid grid-cols-1 gap-1.5">
+                {unsuccessfulHistory.map((h, i) => (
+                  <div
+                    key={`unsuccess-${h.id}-${i}`}
+                    className="bg-amber-50 py-1 px-1.5 rounded-lg border border-amber-200 text-center animate-in slide-in-from-right-2 duration-300"
+                  >
+                    <p className="georgian-text text-sm font-bold text-amber-950 leading-tight">{h.georgian}</p>
+                  </div>
+                ))}
+                {unsuccessfulHistory.length === 0 && (
+                  <div className="py-3 text-center text-amber-300 font-black uppercase tracking-widest text-[8px] border border-dotted border-amber-100 rounded-lg">
+                    None
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Successful Column */}
             <div>
@@ -703,18 +706,18 @@ const App: React.FC = () => {
                 <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                 <h3 className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">Successful</h3>
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-1.5">
                 {successfulHistory.map((h, i) => (
                   <div
                     key={`success-${h.id}-${i}`}
-                    className="bg-emerald-50 py-1.5 px-2 rounded-lg border border-emerald-200 text-center animate-in slide-in-from-right-2 duration-300"
+                    className="bg-emerald-50 py-1 px-1.5 rounded-lg border border-emerald-200 text-center animate-in slide-in-from-right-2 duration-300"
                   >
-                    <p className="georgian-text text-base font-bold text-emerald-950 leading-tight">{h.georgian}</p>
+                    <p className="georgian-text text-sm font-bold text-emerald-950 leading-tight">{h.georgian}</p>
                   </div>
                 ))}
                 {successfulHistory.length === 0 && (
-                  <div className="py-4 text-center text-emerald-300 font-black uppercase tracking-widest text-[9px] border-2 border-dotted border-emerald-100 rounded-xl">
-                    None yet
+                  <div className="py-3 text-center text-emerald-300 font-black uppercase tracking-widest text-[8px] border border-dotted border-emerald-100 rounded-lg">
+                    None
                   </div>
                 )}
               </div>
