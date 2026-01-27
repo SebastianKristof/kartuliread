@@ -87,7 +87,7 @@ const App: React.FC = () => {
   // Current level total progress
   const successCount = levelProgress[currentLevel] || 0;
   const isLevelMastered = successCount >= SUCCESS_THRESHOLD;
-  
+
   // Helper to shuffle a subset of an array
   const shuffleArray = <T,>(array: T[]): T[] => {
     const shuffled = [...array];
@@ -99,20 +99,42 @@ const App: React.FC = () => {
   };
 
   // Exercises for the current level, shuffled in blocks of 10.
-  // Enforce that each word length matches the current level (e.g. Level 4 → 4-letter words).
+  // Enforce that each word length matches the current level if possible, but fallback if not enough.
   const levelExercises = useMemo(() => {
     const allForLevel = EXERCISES_DATA[currentLevel] || [];
-    const raw = allForLevel.filter(ex => [...ex.georgian].length === currentLevel);
+    // Prioritize exact length matches
+    let levelSpecific = allForLevel.filter(ex => [...ex.georgian].length === currentLevel);
+
+    // If we don't have enough exact matches (e.g. at higher levels), mix in others or repeat
+    if (levelSpecific.length < 5) { // Arbitrary low threshold
+      levelSpecific = allForLevel;
+    }
+
+    // Ensure we have at least SUCCESS_THRESHOLD items by repeating if necessary
+    const pool = [...levelSpecific];
+    while (pool.length < SUCCESS_THRESHOLD) {
+      pool.push(...levelSpecific);
+    }
+
+    // Shuffle and slice to exact count needed
     const processed: Exercise[] = [];
-    
+
     // Process in chunks of 10 to keep the general difficulty curve 
-    // but randomize within the group
-    for (let i = 0; i < raw.length; i += BATCH_SIZE) {
-      const chunk = raw.slice(i, i + BATCH_SIZE);
+    // but randomize within the group. We only need up to SUCCESS_THRESHOLD.
+    const needed = Math.max(pool.length, SUCCESS_THRESHOLD);
+    const source = pool.slice(0, needed); // Ensure we have enough
+
+    for (let i = 0; i < SUCCESS_THRESHOLD; i += BATCH_SIZE) {
+      // Loop around source if needed (safe due to while loop above, but good practice)
+      const chunk = source.slice(i, i + BATCH_SIZE);
+      // If chunk is partial, fill it from start
+      if (chunk.length < BATCH_SIZE) {
+        chunk.push(...source.slice(0, BATCH_SIZE - chunk.length));
+      }
       processed.push(...shuffleArray(chunk));
     }
-    
-    return processed;
+
+    return processed.slice(0, SUCCESS_THRESHOLD);
   }, [currentLevel]);
 
   // Determine current exercise - either from repetition queue or normal flow
@@ -130,7 +152,7 @@ const App: React.FC = () => {
     const len = currentExercise.georgian.length;
     // Base sizes are larger, but scale down for higher levels (longer words)
     // Level 1-2: largest, Level 3-4: medium, Level 5-6: smaller to fit width
-    
+
     if (len <= 3) {
       // Very short words - largest size
       return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[12rem]";
@@ -169,7 +191,7 @@ const App: React.FC = () => {
         if (alreadyExists) return prev;
         return [currentExercise, ...prev].slice(0, 20);
       });
-      
+
       // Move to next failed exercise or exit repetition mode
       setRepetitionIndex(prev => {
         const nextRepIndex = prev + 1;
@@ -198,11 +220,11 @@ const App: React.FC = () => {
 
     // Normal mode - track history and progress
     setSuccessfulHistory(prev => {
-        const alreadyExists = prev.find(h => h.id === currentExercise.id);
-        if (alreadyExists) return prev;
-        return [currentExercise, ...prev].slice(0, 20);
+      const alreadyExists = prev.find(h => h.id === currentExercise.id);
+      if (alreadyExists) return prev;
+      return [currentExercise, ...prev].slice(0, 20);
     });
-    
+
     const nextCount = successCount + 1;
     setLevelProgress(prev => ({ ...prev, [currentLevel]: nextCount }));
     setShowTranscription(false);
@@ -222,7 +244,10 @@ const App: React.FC = () => {
       });
     } else if (nextCount % BATCH_SIZE === 0) {
       // Chunk complete in normal mode.
-      // If there are failed items, go into chunk review first; congratulate after review.
+      // Clear history for new chunk and show congratulations
+      setSuccessfulHistory([]);
+      setUnsuccessfulHistory([]);
+
       setFailedQueue(currentQueue => {
         if (currentQueue.length > 0) {
           setIsInRepetitionMode(true);
@@ -238,19 +263,19 @@ const App: React.FC = () => {
 
   const handleCouldntRead = () => {
     if (!currentExercise) return;
-    
+
     // Add to unsuccessful history
     setUnsuccessfulHistory(prev => {
       const alreadyExists = prev.find(h => h.id === currentExercise.id);
       if (alreadyExists) return prev;
       return [currentExercise, ...prev].slice(0, 20);
     });
-    
+
     // Add to failed queue if not already there, then move to next exercise
     setFailedQueue(prev => {
       const alreadyExists = prev.find(f => f.id === currentExercise.id);
       const updatedQueue = alreadyExists ? prev : [...prev, currentExercise];
-      
+
       // Move to next exercise (same as correct, but without tracking success)
       const nextCount = successCount + 1;
       setLevelProgress(levelPrev => ({ ...levelPrev, [currentLevel]: nextCount }));
@@ -264,14 +289,18 @@ const App: React.FC = () => {
           setRepetitionContext('level');
         }
       } else if (nextCount % BATCH_SIZE === 0) {
-        // Block complete - check if there are failed exercises to repeat
+        // Block complete - clear history for new chunk
+        setSuccessfulHistory([]);
+        setUnsuccessfulHistory([]);
+
+        // Check if there are failed exercises to repeat
         if (updatedQueue.length > 0) {
           setIsInRepetitionMode(true);
           setRepetitionIndex(0);
           setRepetitionContext('chunk');
         }
       }
-      
+
       return updatedQueue;
     });
   };
@@ -305,18 +334,22 @@ const App: React.FC = () => {
   const currentGroup = Math.floor(successCount / BATCH_SIZE) + 1;
   const groupProgress = successCount % BATCH_SIZE;
 
-  // Auto-dismiss congratulations modal after 3 seconds
+  // Auto-dismiss congratulations messages
   useEffect(() => {
     if (congratulationsMessage) {
+      // Shorter timeout for non-level-complete messages (toasts)
+      const isLevelComplete = congratulationsMessage.includes('mastered');
+      const timeout = isLevelComplete ? 5000 : 2000;
+
       const timer = setTimeout(() => {
         setCongratulationsMessage(null);
-      }, 3000);
+      }, timeout);
       return () => clearTimeout(timer);
     }
   }, [congratulationsMessage]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-[100dvh] bg-slate-50 flex flex-col items-center p-2 sm:p-4 md:p-6 lg:p-8">
       {/* Reset Confirmation Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -348,26 +381,37 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Congratulations Modal */}
+      {/* Congratulations Toast/Modal */}
       {congratulationsMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-emerald-500 animate-in zoom-in duration-300">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
-                  <i className="fas fa-trophy text-emerald-600 text-3xl"></i>
+        congratulationsMessage.includes('mastered') ? (
+          // Level Complete Modal (Center)
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-emerald-500 animate-in zoom-in duration-300">
+              <div className="text-center">
+                <div className="mb-4">
+                  <div className="w-16 h-16 mx-auto bg-emerald-100 rounded-full flex items-center justify-center">
+                    <i className="fas fa-trophy text-emerald-600 text-3xl"></i>
+                  </div>
                 </div>
+                <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-3 whitespace-pre-line">{congratulationsMessage}</h3>
+                <button
+                  onClick={() => setCongratulationsMessage(null)}
+                  className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
+                >
+                  Continue
+                </button>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black text-indigo-900 mb-3 whitespace-pre-line">{congratulationsMessage}</h3>
-              <button
-                onClick={() => setCongratulationsMessage(null)}
-                className="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-xl font-black transition-all uppercase tracking-widest text-xs sm:text-sm"
-              >
-                Continue
-              </button>
             </div>
           </div>
-        </div>
+        ) : (
+          // Chunk Complete Toast (Top)
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300">
+            <div className="bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 border-2 border-emerald-400">
+              <i className="fas fa-check-circle text-white text-lg"></i>
+              <span className="font-bold text-sm sm:text-base whitespace-nowrap">{congratulationsMessage.split('\n')[0]}</span>
+            </div>
+          </div>
+        )
       )}
       <header className="w-full max-w-2xl mb-3 sm:mb-4 md:mb-6 text-center">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900 mb-1 sm:mb-2">KartuliRead</h1>
@@ -380,11 +424,10 @@ const App: React.FC = () => {
           <button
             key={l}
             onClick={() => handleLevelChange(l)}
-            className={`px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${
-              currentLevel === l 
-                ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105 z-10' 
-                : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
-            }`}
+            className={`px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${currentLevel === l
+              ? 'bg-indigo-600 text-white border-indigo-700 shadow-md scale-105 z-10'
+              : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
+              }`}
           >
             <span className="text-[8px] sm:text-[9px] uppercase opacity-70">Lvl</span>
             <span className="text-sm sm:text-base leading-none">{l}</span>
@@ -420,7 +463,7 @@ const App: React.FC = () => {
             </div>
           </div>
           <ProgressBar current={groupProgress} total={BATCH_SIZE} />
-          
+
           <div className="mt-2 sm:mt-3 md:mt-4 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2">
             <span>Overall Level Mastery</span>
             <span>{successCount} / {SUCCESS_THRESHOLD}</span>
@@ -436,11 +479,11 @@ const App: React.FC = () => {
         </div>
 
         {/* Exercise Area */}
-        <div className="p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col items-center min-h-[400px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[700px] justify-center relative bg-white">
+        <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col items-center min-h-[350px] sm:min-h-[40vh] md:min-h-[45vh] lg:min-h-[45vh] max-h-[50vh] justify-center relative bg-white">
           {currentExercise ? (
             <div className="w-full text-center space-y-4 sm:space-y-6 md:space-y-8 lg:space-y-12 animate-in fade-in zoom-in duration-500">
-              <div className="flex flex-col items-center justify-center min-h-[200px] sm:min-h-[280px] md:min-h-[350px] lg:min-h-[400px] w-full px-2 sm:px-4">
-                <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere`}>
+              <div className="flex flex-col items-center justify-center min-h-[180px] sm:min-h-[200px] md:min-h-[220px] lg:min-h-[240px] w-full px-2 sm:px-4">
+                <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
                   {currentExercise.georgian}
                 </span>
               </div>
@@ -454,7 +497,7 @@ const App: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  <button 
+                  <button
                     onClick={handleReveal}
                     className="text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group"
                   >
@@ -464,13 +507,13 @@ const App: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-6 w-full pt-2 sm:pt-3 md:pt-4">
-                <button 
+                <button
                   onClick={handleCouldntRead}
                   className="py-4 sm:py-5 md:py-6 px-3 sm:px-4 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 uppercase tracking-widest text-[10px] sm:text-xs"
                 >
                   Couldn't Read
                 </button>
-                <button 
+                <button
                   onClick={handleCorrect}
                   className="py-4 sm:py-5 md:py-6 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-xl uppercase tracking-widest text-[10px] sm:text-xs"
                 >
@@ -485,7 +528,7 @@ const App: React.FC = () => {
               <p className="text-sm sm:text-base text-slate-500 font-medium mb-6 sm:mb-8">
                 You've mastered all {SUCCESS_THRESHOLD} items in this level.
               </p>
-              <button 
+              <button
                 onClick={() => handleLevelChange(currentLevel + 1 <= 6 ? currentLevel + 1 : 1)}
                 className="bg-indigo-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-[2rem] font-black shadow-lg hover:bg-indigo-700 transition-all uppercase tracking-widest text-[10px] sm:text-xs"
               >
@@ -533,7 +576,7 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           {/* Unsuccessful Column */}
           <div>
             <div className="flex items-center gap-2 mb-3">
