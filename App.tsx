@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { Exercise, SUCCESS_THRESHOLD, BATCH_SIZE } from './types';
 import { ProgressBar } from './components/ProgressBar';
 import { EXERCISES_DATA } from './data/exercisesData';
@@ -102,6 +102,9 @@ const App: React.FC = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [congratulationsMessage, setCongratulationsMessage] = useState<string | null>(null);
   const [masteredSets, setMasteredSets] = useState<{ [key: number]: number[] }>(() => loadMasteredSets());
+  const [fitFontPx, setFitFontPx] = useState(96);
+  const georgianContainerRef = useRef<HTMLDivElement | null>(null);
+  const georgianTextRef = useRef<HTMLSpanElement | null>(null);
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
@@ -179,40 +182,43 @@ const App: React.FC = () => {
     return levelExercises[successCount] || null;
   }, [levelExercises, successCount, isInRepetitionMode, failedQueue, repetitionIndex]);
 
-  // Dynamic font sizing based on word length and level to prevent overflow
-  // Higher levels (more letters) get smaller base sizes to fit width
-  const fontSizeClass = useMemo(() => {
-    if (!currentExercise) return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[12rem]";
-    const len = currentExercise.georgian.length;
-    // Base sizes are larger, but scale down for higher levels (longer words)
-    // Level 1-2: largest, Level 3-4: medium, Level 5-6: smaller to fit width
+  useLayoutEffect(() => {
+    if (!currentExercise) return;
+    const container = georgianContainerRef.current;
+    const text = georgianTextRef.current;
+    if (!container || !text) return;
 
-    if (len <= 3) {
-      // Very short words
-      return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem]";
-    } else if (len <= 5) {
-      // Short words
-      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl";
-    } else if (len <= 7) {
-      // Medium words - scale by level
-      if (currentLevel <= 2) {
-        return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl";
-      } else if (currentLevel <= 4) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
-      } else {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
+    const computeFitFont = () => {
+      const paddingRatio = 0.1;
+      const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
+      const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
+      if (availableWidth <= 0 || availableHeight <= 0) return;
+
+      let low = 12;
+      let high = Math.max(12, Math.floor(availableHeight));
+      let best = low;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        text.style.fontSize = `${mid}px`;
+        const fits = text.scrollWidth <= availableWidth && text.scrollHeight <= availableHeight;
+        if (fits) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
       }
-    } else {
-      // Long words - scale significantly
-      if (currentLevel <= 2) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
-      } else if (currentLevel <= 4) {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
-      } else {
-        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
-      }
-    }
-  }, [currentExercise, currentLevel]);
+
+      setFitFontPx(prev => (prev === best ? prev : best));
+    };
+
+    computeFitFont();
+    const observer = new ResizeObserver(() => computeFitFont());
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [currentExercise]);
 
   const handleCorrect = () => {
     if (!currentExercise) return;
@@ -510,9 +516,9 @@ const App: React.FC = () => {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900">KartuliRead</h1>
       </header>
 
-      <div className="w-full max-w-6xl flex flex-col lg:flex-row items-start justify-center gap-4 lg:gap-6 px-2 sm:px-4">
+      <div className="w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_260px] lg:gap-6 items-start justify-center gap-4 px-2 sm:px-4">
         {/* Left Sidebar: Level Selector */}
-        <div className="w-full lg:w-24 grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-1 gap-1.5 order-1">
+        <div className="w-full grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-2 gap-1.5 order-1">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
             <button
               key={l}
@@ -530,7 +536,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Center: Main Exercise Area */}
-        <div className="w-full lg:flex-1 max-w-2xl order-2">
+        <div className="w-full lg:flex-1 max-w-2xl lg:max-w-xl lg:scale-[0.95] lg:origin-top order-2">
           <main className="w-full bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50 border-t-4 sm:border-t-8 border-t-indigo-500">
             {/* Progress Header */}
             <div className="bg-indigo-50/30 p-2 sm:p-3 md:p-4 border-b border-indigo-100">
@@ -605,8 +611,12 @@ const App: React.FC = () => {
             <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white">
               {currentExercise ? (
                 <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500">
-                  <div className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0">
-                    <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
+                  <div ref={georgianContainerRef} className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0">
+                    <span
+                      ref={georgianTextRef}
+                      style={{ fontSize: `${fitFontPx}px` }}
+                      className="georgian-text inline-block max-w-full font-bold text-indigo-950 leading-none select-none tracking-normal drop-shadow-sm whitespace-nowrap"
+                    >
                       {currentExercise.georgian}
                     </span>
                   </div>
@@ -668,7 +678,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Sidebar: Recent Progress */}
-        <aside className="w-full lg:w-72 mt-6 lg:mt-0 lg:max-h-[85vh] lg:overflow-y-auto lg:pr-2 order-3">
+        <aside className="w-full mt-6 lg:mt-0 lg:max-h-[85vh] lg:overflow-y-auto lg:pr-2 order-3">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-black text-indigo-900 tracking-tight">Recent</h2>
             <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
