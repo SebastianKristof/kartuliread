@@ -18,7 +18,7 @@ html {
   min-height: 100vh;
 }
 
-@media (orientation: landscape) and (max-width: 1024px) {
+@media (min-aspect-ratio: 1/1) and (max-height: 620px) {
   .desktopish-grid {
     display: grid !important;
     grid-template-columns: 25% 50% 25%;
@@ -138,8 +138,9 @@ html {
   }
 
   .desktopish-action-btn {
-    padding: 0.35rem 0.5rem !important;
-    font-size: 0.55rem !important;
+    padding: 0.75rem 0.75rem !important;
+    font-size: 0.625rem !important;
+    border-radius: 0.75rem !important;
     border-bottom-width: 2px !important;
   }
 
@@ -152,4 +153,58 @@ html {
 
 .desktopish-landscape-show {
   display: none;
+}
+
+@media (min-aspect-ratio: 1/1) and (max-height: 380px) {
+  .desktopish-main {
+    height: auto;
+  }
+
+  .desktopish-card {
+    height: auto;
+  }
+
+  .desktopish-exercise {
+    min-height: auto;
+  }
+
+  .desktopish-recent {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (min-aspect-ratio: 1/1) and (min-height: 621px) and (max-width: 1024px) {
+  .desktopish-grid {
+    display: grid !important;
+    grid-template-columns: 220px minmax(0, 1fr) 260px;
+    gap: 1.5rem;
+  }
+
+  .desktopish-levels {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-column: 1;
+  }
+
+  .desktopish-main {
+    grid-column: 2;
+  }
+
+  .desktopish-recent {
+    margin-top: 0 !important;
+    grid-column: 3;
+  }
+
+  .desktopish-hide {
+    display: none !important;
+  }
+
+  .desktopish-landscape-hide {
+    display: none !important;
+  }
+
+  .desktopish-landscape-show {
+    display: block !important;
+  }
 }
