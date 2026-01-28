@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Exercise, SUCCESS_THRESHOLD, BATCH_SIZE } from './types';
 import { ProgressBar } from './components/ProgressBar';
 import { EXERCISES_DATA } from './data/exercisesData';
@@ -179,40 +179,151 @@ const App: React.FC = () => {
     return levelExercises[successCount] || null;
   }, [levelExercises, successCount, isInRepetitionMode, failedQueue, repetitionIndex]);
 
-  // Dynamic font sizing based on word length and level to prevent overflow
-  // Higher levels (more letters) get smaller base sizes to fit width
-  const fontSizeClass = useMemo(() => {
-    if (!currentExercise) return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[12rem]";
-    const len = currentExercise.georgian.length;
-    // Base sizes are larger, but scale down for higher levels (longer words)
-    // Level 1-2: largest, Level 3-4: medium, Level 5-6: smaller to fit width
+  // Ref for the Georgian text element to calculate optimal font size
+  const georgianTextRef = useRef<HTMLSpanElement>(null);
+  const georgianContainerRef = useRef<HTMLDivElement>(null);
+  const [dynamicFontSize, setDynamicFontSize] = useState<string>('');
 
-    if (len <= 3) {
-      // Very short words
-      return "text-7xl sm:text-8xl md:text-9xl lg:text-[10rem]";
-    } else if (len <= 5) {
-      // Short words
-      return "text-6xl sm:text-7xl md:text-8xl lg:text-9xl";
-    } else if (len <= 7) {
-      // Medium words - scale by level
-      if (currentLevel <= 2) {
-        return "text-5xl sm:text-6xl md:text-7xl lg:text-8xl";
-      } else if (currentLevel <= 4) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
-      } else {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
-      }
-    } else {
-      // Long words - scale significantly
-      if (currentLevel <= 2) {
-        return "text-4xl sm:text-5xl md:text-6xl lg:text-7xl";
-      } else if (currentLevel <= 4) {
-        return "text-3xl sm:text-4xl md:text-5xl lg:text-6xl";
-      } else {
-        return "text-2xl sm:text-3xl md:text-4xl lg:text-5xl";
-      }
+  // Calculate optimal font size to fill available width without wrapping
+  useEffect(() => {
+    if (!currentExercise) {
+      setDynamicFontSize('');
+      return;
     }
-  }, [currentExercise, currentLevel]);
+
+    const calculateOptimalFontSize = () => {
+      const element = georgianTextRef.current;
+      const container = georgianContainerRef.current;
+      if (!element || !container || !currentExercise) return;
+
+      // Get available dimensions from the container
+      const containerRect = container.getBoundingClientRect();
+      const availableWidth = containerRect.width;
+      const availableHeight = containerRect.height;
+
+      // Skip if container dimensions are not available yet
+      if (availableWidth <= 0 || availableHeight <= 0) return;
+
+      // Determine constraints based on word length
+      // Shorter words (1-2 letters) should use more space, longer words (6-8 letters) need more width
+      const wordLength = currentExercise.georgian.length;
+      let widthPercent: number;
+      let heightPercent: number;
+      let maxFontSizeMultiplier: number;
+
+      if (wordLength <= 2) {
+        // Very short words: use more of both dimensions
+        widthPercent = 0.95;
+        heightPercent = 0.90;
+        maxFontSizeMultiplier = 0.8;
+      } else if (wordLength <= 4) {
+        // Short-medium words: balanced approach
+        widthPercent = 0.85;
+        heightPercent = 0.85;
+        maxFontSizeMultiplier = 0.6;
+      } else if (wordLength <= 6) {
+        // Medium-long words: prioritize width
+        widthPercent = 0.90;
+        heightPercent = 0.80;
+        maxFontSizeMultiplier = 0.5;
+      } else {
+        // Long words (7-8 letters): maximize width usage
+        widthPercent = 0.95;
+        heightPercent = 0.80;
+        maxFontSizeMultiplier = 0.5;
+      }
+
+      // Use a larger max font size to allow longer words to scale up
+      const maxFontSize = Math.max(400, availableWidth * maxFontSizeMultiplier);
+      const minFontSize = 24; // Minimum size (1.5rem = 24px)
+      
+      // Create a temporary span to measure text dimensions with all the same styles
+      const tempSpan = document.createElement('span');
+      // Copy all computed styles that affect dimensions
+      const computedStyle = window.getComputedStyle(element);
+      tempSpan.style.fontFamily = computedStyle.fontFamily;
+      tempSpan.style.fontWeight = computedStyle.fontWeight;
+      tempSpan.style.letterSpacing = computedStyle.letterSpacing;
+      tempSpan.style.lineHeight = computedStyle.lineHeight;
+      tempSpan.style.position = 'absolute';
+      tempSpan.style.visibility = 'hidden';
+      tempSpan.style.whiteSpace = 'nowrap';
+      tempSpan.style.fontSize = `${maxFontSize}px`;
+      tempSpan.textContent = currentExercise.georgian;
+      document.body.appendChild(tempSpan);
+
+      // Binary search for optimal font size based on width
+      let low = minFontSize;
+      let high = maxFontSize;
+      let optimalSizeByWidth = minFontSize;
+
+      const targetWidth = availableWidth * widthPercent;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        tempSpan.style.fontSize = `${mid}px`;
+        // Force reflow to get accurate measurement
+        tempSpan.offsetWidth;
+        const textWidth = tempSpan.offsetWidth;
+
+        if (textWidth <= targetWidth) {
+          optimalSizeByWidth = mid;
+          low = mid + 1; // Try larger size
+        } else {
+          high = mid - 1; // Try smaller size
+        }
+      }
+
+      // Binary search for optimal font size based on height
+      low = minFontSize;
+      high = maxFontSize;
+      let optimalSizeByHeight = minFontSize;
+
+      const targetHeight = availableHeight * heightPercent;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        tempSpan.style.fontSize = `${mid}px`;
+        // Force reflow to get accurate measurement
+        tempSpan.offsetHeight;
+        const textHeight = tempSpan.offsetHeight;
+
+        if (textHeight <= targetHeight) {
+          optimalSizeByHeight = mid;
+          low = mid + 1; // Try larger size
+        } else {
+          high = mid - 1; // Try smaller size
+        }
+      }
+
+      document.body.removeChild(tempSpan);
+      
+      // Take the minimum of both constraints to ensure it fits both width and height
+      const optimalSize = Math.min(optimalSizeByWidth, optimalSizeByHeight);
+      setDynamicFontSize(`${optimalSize}px`);
+    };
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(calculateOptimalFontSize);
+    }, 50);
+
+    // Recalculate on window resize with debouncing
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        requestAnimationFrame(calculateOptimalFontSize);
+      }, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(timeoutId);
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [currentExercise]);
 
   const handleCorrect = () => {
     if (!currentExercise) return;
@@ -605,8 +716,15 @@ const App: React.FC = () => {
             <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white">
               {currentExercise ? (
                 <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500">
-                  <div className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0">
-                    <span className={`georgian-text ${fontSizeClass} font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm break-words w-full overflow-wrap-anywhere transition-all duration-300`}>
+                  <div 
+                    ref={georgianContainerRef}
+                    className="flex flex-col items-center justify-center h-[120px] sm:h-[140px] md:h-[160px] lg:h-[180px] w-full px-0"
+                  >
+                    <span 
+                      ref={georgianTextRef}
+                      className="georgian-text font-bold text-indigo-950 leading-tight select-none tracking-normal drop-shadow-sm whitespace-nowrap transition-all duration-300"
+                      style={{ fontSize: dynamicFontSize || '6rem' }}
+                    >
                       {currentExercise.georgian}
                     </span>
                   </div>
