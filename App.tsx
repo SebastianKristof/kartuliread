@@ -626,7 +626,7 @@ const App: React.FC = () => {
                       <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-0.5 sm:space-y-1">
                         <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
                         {currentExercise.meaning && (
-                          <p className="text-xs sm:text-sm text-slate-400 font-semibold italic">
+                          <p className="text-sm sm:text-base text-slate-400 font-semibold italic">
                             {/syllable|letter|root|suffix/i.test(currentExercise.meaning)
                               ? currentExercise.meaning
                               : `"${currentExercise.meaning}"`}
