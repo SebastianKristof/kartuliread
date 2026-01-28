@@ -109,6 +109,8 @@ const App: React.FC = () => {
   const georgianTextRef = useRef<HTMLSpanElement | null>(null);
   const translationContainerRef = useRef<HTMLDivElement | null>(null);
   const translationTextRef = useRef<HTMLDivElement | null>(null);
+  const revealButtonClass =
+    "inline-flex w-auto max-w-full self-center text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group whitespace-nowrap";
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
@@ -192,38 +194,45 @@ const App: React.FC = () => {
     const text = georgianTextRef.current;
     if (!container || !text) return;
 
-        const computeFitFont = () => {
-          const paddingRatio = 0.1;
-          const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
-          const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
-          if (availableWidth <= 0 || availableHeight <= 0) return;
+    const computeFitFont = () => {
+      const paddingRatio = 0.1;
+      const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
+      const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
+      if (availableWidth <= 0 || availableHeight <= 0) return;
 
           let low = 12;
           let high = Math.max(12, Math.floor(availableHeight));
           let best = low;
 
-          while (low <= high) {
-            const mid = Math.floor((low + high) / 2);
-            text.style.fontSize = `${mid}px`;
-            text.style.lineHeight = '1';
-            const rect = text.getBoundingClientRect();
-            const fits = rect.width <= availableWidth && rect.height <= availableHeight;
-            if (fits) {
-              best = mid;
-              low = mid + 1;
-            } else {
-              high = mid - 1;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        text.style.fontSize = `${mid}px`;
+        text.style.lineHeight = '1';
+        const rect = text.getBoundingClientRect();
+        const fits = rect.width <= availableWidth && rect.height <= availableHeight;
+        if (fits) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
         }
       }
 
+      text.style.fontSize = `${best}px`;
       setFitFontPx(prev => (prev === best ? prev : best));
     };
 
     computeFitFont();
+    const raf = requestAnimationFrame(() => computeFitFont());
+    const timeout = window.setTimeout(() => computeFitFont(), 300);
     const observer = new ResizeObserver(() => computeFitFont());
     observer.observe(container);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
   }, [currentExercise]);
 
   useLayoutEffect(() => {
@@ -233,9 +242,11 @@ const App: React.FC = () => {
     if (!container || !text) return;
 
     const computeFitTranslation = () => {
-      const paddingRatio = 0.1;
-      const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
-      const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
+      const styles = window.getComputedStyle(container);
+      const paddingX = parseFloat(styles.paddingLeft) + parseFloat(styles.paddingRight);
+      const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+      const availableWidth = Math.max(0, container.clientWidth - paddingX);
+      const availableHeight = Math.max(0, container.clientHeight - paddingY);
       if (availableWidth <= 0 || availableHeight <= 0) return;
 
       let low = 10;
@@ -245,8 +256,10 @@ const App: React.FC = () => {
       while (low <= high) {
         const mid = Math.floor((low + high) / 2);
         text.style.fontSize = `${mid}px`;
-        const rect = text.getBoundingClientRect();
-        const fits = rect.width <= availableWidth && rect.height <= availableHeight;
+        // Ensure width fits too (long words can otherwise blow past the container).
+        const fits =
+          text.scrollHeight <= availableHeight &&
+          text.scrollWidth <= availableWidth;
         if (fits) {
           best = mid;
           low = mid + 1;
@@ -258,12 +271,24 @@ const App: React.FC = () => {
       setFitTranslationPx(prev => (prev === best ? prev : best));
     };
 
-    computeFitTranslation();
-    const observer = new ResizeObserver(() => computeFitTranslation());
+    let rafId = 0;
+    const scheduleFit = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => computeFitTranslation());
+    };
+
+    scheduleFit();
+    const afterAnim = window.setTimeout(() => computeFitTranslation(), 350);
+    const observer = new ResizeObserver(() => scheduleFit());
     observer.observe(container);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+      clearTimeout(afterAnim);
+    };
   }, [currentExercise, showTranscription]);
+
 
   const handleCorrect = () => {
     if (!currentExercise) return;
@@ -657,7 +682,7 @@ const App: React.FC = () => {
             {/* Exercise Area */}
             <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white desktopish-exercise">
               {currentExercise ? (
-                <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500 desktopish-stack">
+                <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 desktopish-stack">
                   <div ref={georgianContainerRef} className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0 overflow-hidden desktopish-georgian">
                     <span
                       ref={georgianTextRef}
@@ -670,21 +695,29 @@ const App: React.FC = () => {
 
                   <div
                     ref={translationContainerRef}
-                    className={`h-[72px] sm:h-[80px] md:h-[88px] lg:h-[96px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 border border-slate-100 overflow-hidden desktopish-translation max-w-full ${
-                      showTranscription ? 'w-full' : 'w-auto self-center'
+                    className={`h-[72px] sm:h-[80px] md:h-[88px] lg:h-[96px] flex flex-col items-center justify-center rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 border desktopish-translation max-w-full w-full ${
+                      showTranscription
+                        ? 'bg-slate-50/50 border-slate-100 overflow-hidden'
+                        : 'bg-transparent border-transparent'
                     }`}
                   >
                     {showTranscription ? (
                       <div
                         ref={translationTextRef}
                         style={{ fontSize: `${fitTranslationPx}px` }}
-                        className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-0.5 sm:space-y-1 py-[2px]"
+                        className="text-center space-y-0.5 sm:space-y-1 py-[2px] max-w-full w-full"
                       >
-                        <p className="font-black text-indigo-600 tracking-tighter uppercase py-[2px]" style={{ fontSize: '1.6em', lineHeight: 1 }}>
+                        <p
+                          className="font-black text-indigo-600 tracking-tighter uppercase py-[2px] whitespace-normal break-words"
+                          style={{ fontSize: '1.6em', lineHeight: 1 }}
+                        >
                           {currentExercise.transcription}
                         </p>
                         {currentExercise.meaning && (
-                          <p className="text-slate-400 font-semibold italic py-[2px]" style={{ fontSize: '0.85em', lineHeight: 1.1 }}>
+                          <p
+                            className="text-slate-400 font-semibold italic py-[2px] whitespace-normal break-words"
+                            style={{ fontSize: '0.85em', lineHeight: 1.1 }}
+                          >
                             {/syllable|letter|root|suffix/i.test(currentExercise.meaning)
                               ? currentExercise.meaning
                               : `"${currentExercise.meaning}"`}
@@ -694,7 +727,7 @@ const App: React.FC = () => {
                     ) : (
                       <button
                         onClick={handleReveal}
-                        className="inline-flex w-auto max-w-full self-center text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group whitespace-nowrap"
+                        className={revealButtonClass}
                       >
                         Tap to reveal transcription
                       </button>
