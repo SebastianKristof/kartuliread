@@ -102,6 +102,7 @@ const App: React.FC = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [congratulationsMessage, setCongratulationsMessage] = useState<string | null>(null);
   const [masteredSets, setMasteredSets] = useState<{ [key: number]: number[] }>(() => loadMasteredSets());
+  const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [fitFontPx, setFitFontPx] = useState(96);
   const georgianContainerRef = useRef<HTMLDivElement | null>(null);
   const georgianTextRef = useRef<HTMLSpanElement | null>(null);
@@ -516,9 +517,18 @@ const App: React.FC = () => {
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900">KartuliRead</h1>
       </header>
 
-      <div className="w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_260px] lg:gap-6 items-start justify-center gap-4 px-2 sm:px-4">
+      <div className="w-full max-w-6xl flex flex-col lg:grid lg:grid-cols-[220px_minmax(0,1fr)_260px] lg:gap-6 items-start justify-center gap-4 px-2 sm:px-4 desktopish-grid">
+        <div className="w-full flex items-center justify-center lg:hidden desktopish-hide">
+          <button
+            onClick={() => setShowLevelMenu(true)}
+            className="bg-white text-indigo-600 border-2 border-indigo-100 shadow-sm px-4 py-2 rounded-full font-black uppercase tracking-widest text-[10px] sm:text-xs flex items-center gap-2"
+          >
+            <i className="fas fa-layer-group"></i>
+            <span>Levels (Lvl {currentLevel})</span>
+          </button>
+        </div>
         {/* Left Sidebar: Level Selector */}
-        <div className="w-full grid grid-cols-4 sm:grid-cols-8 lg:grid-cols-2 gap-1.5 order-1">
+        <div className="w-full hidden lg:grid lg:grid-cols-2 gap-1.5 order-1 desktopish-levels">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
             <button
               key={l}
@@ -678,7 +688,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Sidebar: Recent Progress */}
-        <aside className="w-full mt-6 lg:mt-0 lg:max-h-[85vh] lg:overflow-y-auto lg:pr-2 order-3">
+        <aside className="w-full mt-6 lg:mt-0 lg:max-h-[85vh] lg:overflow-y-auto lg:pr-2 order-3 desktopish-recent">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-black text-indigo-900 tracking-tight">Recent</h2>
             <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -740,6 +750,49 @@ const App: React.FC = () => {
         <p className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">KartuliRead System</p>
         <p className="text-[8px] sm:text-[9px] font-bold text-slate-300 uppercase tracking-widest">50 Items Per Level • Group Shuffle Active</p>
       </footer>
+
+      {showLevelMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={() => setShowLevelMenu(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 border border-indigo-100 animate-in slide-in-from-top-4 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm sm:text-base font-black text-indigo-900 uppercase tracking-widest">Select Level</h3>
+              <button
+                onClick={() => setShowLevelMenu(false)}
+                className="text-slate-400 hover:text-indigo-600 font-black text-lg leading-none"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
+                <button
+                  key={l}
+                  onClick={() => {
+                    handleLevelChange(l);
+                    setShowLevelMenu(false);
+                  }}
+                  className={`px-2 py-3 rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${
+                    currentLevel === l
+                      ? 'bg-indigo-600 text-white border-indigo-700 shadow-lg'
+                      : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
+                  }`}
+                >
+                  <span className="text-[9px] uppercase opacity-70">Lvl</span>
+                  <span className="text-lg leading-none">{l}</span>
+                  <span className="text-[7px] mt-1 opacity-60 font-black">{levelProgress[l]}/50</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

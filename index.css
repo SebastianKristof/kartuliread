@@ -17,3 +17,23 @@ html {
   width: 100%;
   min-height: 100vh;
 }
+
+@media (orientation: landscape) and (max-width: 1024px) and (min-height: 360px) {
+  .desktopish-grid {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 260px;
+    gap: 1.5rem;
+  }
+
+  .desktopish-levels {
+    display: grid !important;
+  }
+
+  .desktopish-hide {
+    display: none !important;
+  }
+
+  .desktopish-recent {
+    margin-top: 0 !important;
+  }
+}
