@@ -104,8 +104,11 @@ const App: React.FC = () => {
   const [masteredSets, setMasteredSets] = useState<{ [key: number]: number[] }>(() => loadMasteredSets());
   const [showLevelMenu, setShowLevelMenu] = useState(false);
   const [fitFontPx, setFitFontPx] = useState(96);
+  const [fitTranslationPx, setFitTranslationPx] = useState(18);
   const georgianContainerRef = useRef<HTMLDivElement | null>(null);
   const georgianTextRef = useRef<HTMLSpanElement | null>(null);
+  const translationContainerRef = useRef<HTMLDivElement | null>(null);
+  const translationTextRef = useRef<HTMLDivElement | null>(null);
 
   // Save progress to localStorage whenever it changes
   useEffect(() => {
@@ -189,25 +192,27 @@ const App: React.FC = () => {
     const text = georgianTextRef.current;
     if (!container || !text) return;
 
-    const computeFitFont = () => {
-      const paddingRatio = 0.1;
-      const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
-      const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
-      if (availableWidth <= 0 || availableHeight <= 0) return;
+        const computeFitFont = () => {
+          const paddingRatio = 0.1;
+          const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
+          const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
+          if (availableWidth <= 0 || availableHeight <= 0) return;
 
-      let low = 12;
-      let high = Math.max(12, Math.floor(availableHeight));
-      let best = low;
+          let low = 12;
+          let high = Math.max(12, Math.floor(availableHeight));
+          let best = low;
 
-      while (low <= high) {
-        const mid = Math.floor((low + high) / 2);
-        text.style.fontSize = `${mid}px`;
-        const fits = text.scrollWidth <= availableWidth && text.scrollHeight <= availableHeight;
-        if (fits) {
-          best = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
+          while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            text.style.fontSize = `${mid}px`;
+            text.style.lineHeight = '1';
+            const rect = text.getBoundingClientRect();
+            const fits = rect.width <= availableWidth && rect.height <= availableHeight;
+            if (fits) {
+              best = mid;
+              low = mid + 1;
+            } else {
+              high = mid - 1;
         }
       }
 
@@ -220,6 +225,45 @@ const App: React.FC = () => {
 
     return () => observer.disconnect();
   }, [currentExercise]);
+
+  useLayoutEffect(() => {
+    if (!currentExercise || !showTranscription) return;
+    const container = translationContainerRef.current;
+    const text = translationTextRef.current;
+    if (!container || !text) return;
+
+    const computeFitTranslation = () => {
+      const paddingRatio = 0.1;
+      const availableWidth = container.clientWidth * (1 - paddingRatio * 2);
+      const availableHeight = container.clientHeight * (1 - paddingRatio * 2);
+      if (availableWidth <= 0 || availableHeight <= 0) return;
+
+      let low = 10;
+      let high = Math.max(10, Math.floor(availableHeight));
+      let best = low;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        text.style.fontSize = `${mid}px`;
+        const rect = text.getBoundingClientRect();
+        const fits = rect.width <= availableWidth && rect.height <= availableHeight;
+        if (fits) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      setFitTranslationPx(prev => (prev === best ? prev : best));
+    };
+
+    computeFitTranslation();
+    const observer = new ResizeObserver(() => computeFitTranslation());
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [currentExercise, showTranscription]);
 
   const handleCorrect = () => {
     if (!currentExercise) return;
@@ -513,7 +557,7 @@ const App: React.FC = () => {
           </div>
         )
       )}
-      <header className="w-full max-w-5xl mb-2 sm:mb-4 md:mb-6 text-center">
+      <header className="w-full max-w-5xl mb-2 sm:mb-4 md:mb-6 text-center desktopish-header desktopish-landscape-hide">
         <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-indigo-900">KartuliRead</h1>
       </header>
 
@@ -529,11 +573,14 @@ const App: React.FC = () => {
         </div>
         {/* Left Sidebar: Level Selector */}
         <div className="w-full hidden lg:grid lg:grid-cols-2 gap-1.5 order-1 desktopish-levels">
+          <header className="w-full col-span-full mb-2 text-left desktopish-landscape-show">
+            <h1 className="text-2xl font-extrabold text-indigo-900">KartuliRead</h1>
+          </header>
           {[1, 2, 3, 4, 5, 6, 7, 8].map(l => (
             <button
               key={l}
               onClick={() => handleLevelChange(l)}
-              className={`px-1 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${currentLevel === l
+              className={`desktopish-level-btn px-1 sm:px-2 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border-2 flex flex-col items-center justify-center ${currentLevel === l
                 ? 'bg-indigo-600 text-white border-indigo-700 shadow-md lg:scale-105 z-10'
                 : 'bg-white text-indigo-400 border-indigo-50 hover:border-indigo-200 shadow-sm'
                 }`}
@@ -546,10 +593,10 @@ const App: React.FC = () => {
         </div>
 
         {/* Center: Main Exercise Area */}
-        <div className="w-full lg:flex-1 max-w-2xl lg:max-w-xl lg:scale-[0.95] lg:origin-top order-2">
-          <main className="w-full bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50 border-t-4 sm:border-t-8 border-t-indigo-500">
+        <div className="w-full lg:flex-1 max-w-2xl lg:max-w-xl lg:scale-[0.95] lg:origin-top order-2 desktopish-main">
+          <main className="w-full bg-white rounded-2xl sm:rounded-[2.5rem] shadow-2xl overflow-hidden border border-indigo-50 border-t-4 sm:border-t-8 border-t-indigo-500 desktopish-card">
             {/* Progress Header */}
-            <div className="bg-indigo-50/30 p-2 sm:p-3 md:p-4 border-b border-indigo-100">
+            <div className="bg-indigo-50/30 p-2 sm:p-3 md:p-4 border-b border-indigo-100 desktopish-progress">
               <div className="flex justify-between items-end mb-1 sm:mb-2 md:mb-3 px-1 sm:px-2">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -574,7 +621,7 @@ const App: React.FC = () => {
                           key={setNum}
                           onClick={() => handleSetChange(setNum)}
                           disabled={isMastered}
-                          className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isMastered
+                          className={`desktopish-set-btn text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md transition-all border-2 ${isMastered
                             ? 'bg-emerald-50 text-emerald-500 border-emerald-100 opacity-80 cursor-default'
                             : isCurrent
                               ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm scale-110'
@@ -601,27 +648,17 @@ const App: React.FC = () => {
               </div>
               <ProgressBar current={groupProgress} total={BATCH_SIZE} />
 
-              <div className="mt-1.5 sm:mt-2 md:mt-3 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2">
+              <div className="mt-1.5 sm:mt-2 md:mt-3 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2 desktopish-overall">
                 <span>Overall Level Mastery</span>
                 <span>{successCount} / {SUCCESS_THRESHOLD}</span>
-              </div>
-              <div className="h-6 sm:h-8 mt-1 flex flex-col justify-center">
-                {isInRepetitionMode && failedQueue.length > 0 ? (
-                  <div className="text-center animate-in slide-in-from-bottom-2 duration-300">
-                    <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-amber-300">
-                      <i className="fas fa-redo text-amber-700"></i>
-                      <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
-                    </div>
-                  </div>
-                ) : null}
               </div>
             </div>
 
             {/* Exercise Area */}
-            <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white">
+            <div className="p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center relative bg-white desktopish-exercise">
               {currentExercise ? (
-                <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500">
-                  <div ref={georgianContainerRef} className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0">
+                <div className="w-full text-center space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 animate-in fade-in zoom-in duration-500 desktopish-stack">
+                  <div ref={georgianContainerRef} className="flex flex-col items-center justify-center min-h-[120px] sm:min-h-[140px] md:min-h-[160px] lg:min-h-[180px] w-full px-0 overflow-hidden desktopish-georgian">
                     <span
                       ref={georgianTextRef}
                       style={{ fontSize: `${fitFontPx}px` }}
@@ -631,12 +668,23 @@ const App: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="h-[72px] sm:h-[80px] md:h-[88px] lg:h-[96px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 border border-slate-100">
+                  <div
+                    ref={translationContainerRef}
+                    className={`h-[72px] sm:h-[80px] md:h-[88px] lg:h-[96px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl sm:rounded-3xl p-2 sm:p-3 md:p-4 border border-slate-100 overflow-hidden desktopish-translation max-w-full ${
+                      showTranscription ? 'w-full' : 'w-auto self-center'
+                    }`}
+                  >
                     {showTranscription ? (
-                      <div className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-0.5 sm:space-y-1">
-                        <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-indigo-600 tracking-tighter uppercase">{currentExercise.transcription}</p>
+                      <div
+                        ref={translationTextRef}
+                        style={{ fontSize: `${fitTranslationPx}px` }}
+                        className="animate-in slide-in-from-bottom-2 duration-300 text-center space-y-0.5 sm:space-y-1 py-[2px]"
+                      >
+                        <p className="font-black text-indigo-600 tracking-tighter uppercase py-[2px]" style={{ fontSize: '1.6em', lineHeight: 1 }}>
+                          {currentExercise.transcription}
+                        </p>
                         {currentExercise.meaning && (
-                          <p className="text-sm sm:text-base text-slate-400 font-semibold italic">
+                          <p className="text-slate-400 font-semibold italic py-[2px]" style={{ fontSize: '0.85em', lineHeight: 1.1 }}>
                             {/syllable|letter|root|suffix/i.test(currentExercise.meaning)
                               ? currentExercise.meaning
                               : `"${currentExercise.meaning}"`}
@@ -646,23 +694,23 @@ const App: React.FC = () => {
                     ) : (
                       <button
                         onClick={handleReveal}
-                        className="text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group"
+                        className="inline-flex w-auto max-w-full self-center text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group whitespace-nowrap"
                       >
                         Tap to reveal transcription
                       </button>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 w-full pt-2 sm:pt-3 md:pt-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5 w-full pt-2 sm:pt-3 md:pt-4 desktopish-actions">
                     <button
                       onClick={handleCouldntRead}
-                      className="py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 uppercase tracking-widest text-[10px] sm:text-xs"
+                      className="desktopish-action-btn py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-slate-50 hover:bg-slate-100 text-slate-400 font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-slate-200 active:border-b-0 active:translate-y-1 uppercase tracking-widest text-[10px] sm:text-xs"
                     >
                       Couldn't Read
                     </button>
                     <button
                       onClick={handleCorrect}
-                      className="py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-xl uppercase tracking-widest text-[10px] sm:text-xs"
+                      className="desktopish-action-btn py-3 sm:py-4 md:py-5 px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl sm:rounded-[2rem] transition-all border-b-2 sm:border-b-4 border-indigo-900 active:border-b-0 active:translate-y-1 shadow-xl uppercase tracking-widest text-[10px] sm:text-xs"
                     >
                       I Read It!
                     </button>
@@ -790,6 +838,15 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {isInRepetitionMode && failedQueue.length > 0 && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-2 duration-200">
+          <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-amber-300 shadow-sm">
+            <i className="fas fa-redo text-amber-700"></i>
+            <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>
           </div>
         </div>
       )}

@@ -18,22 +18,138 @@ html {
   min-height: 100vh;
 }
 
-@media (orientation: landscape) and (max-width: 1024px) and (min-height: 360px) {
+@media (orientation: landscape) and (max-width: 1024px) {
   .desktopish-grid {
-    display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 260px;
-    gap: 1.5rem;
+    display: grid !important;
+    grid-template-columns: 25% 50% 25%;
+    gap: 0.75rem;
   }
 
   .desktopish-levels {
     display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-column: 1;
+  }
+
+  .desktopish-main {
+    grid-column: 2;
+    height: 90vh;
+  }
+
+  .desktopish-recent {
+    margin-top: 0 !important;
+    grid-column: 3;
   }
 
   .desktopish-hide {
     display: none !important;
   }
 
-  .desktopish-recent {
-    margin-top: 0 !important;
+  .desktopish-header {
+    margin-bottom: 0.25rem !important;
   }
+
+  .desktopish-header h1 {
+    font-size: 1.75rem !important;
+  }
+
+  .desktopish-landscape-hide {
+    display: none !important;
+  }
+
+  .desktopish-landscape-show {
+    display: block !important;
+  }
+
+  .desktopish-level-btn {
+    padding: 0.4rem 0.45rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  .desktopish-level-btn span:first-child {
+    font-size: 0.55rem !important;
+  }
+
+  .desktopish-level-btn span:nth-child(2) {
+    font-size: 0.95rem !important;
+  }
+
+  .desktopish-level-btn span:nth-child(3) {
+    font-size: 0.5rem !important;
+  }
+
+  .desktopish-card {
+    border-top-width: 4px !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desktopish-progress {
+    padding: 0.4rem !important;
+    flex: 0 0 auto;
+  }
+
+  .desktopish-progress h2 {
+    font-size: 0.95rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .desktopish-progress .text-2xl {
+    font-size: 1.35rem !important;
+  }
+
+  .desktopish-stack {
+    row-gap: 0.25rem !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desktopish-georgian {
+    min-height: 70px !important;
+    flex: 1 1 auto;
+  }
+
+  .desktopish-translation {
+    height: 50px !important;
+    padding: 0.4rem !important;
+    flex: 0 0 auto;
+  }
+
+  .desktopish-actions {
+    padding-top: 0.2rem !important;
+    gap: 0.4rem !important;
+    flex: 0 0 auto;
+  }
+
+  .desktopish-exercise {
+    padding: 0.6rem !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .desktopish-set-btn {
+    padding: 0.2rem 0.35rem !important;
+    font-size: 0.5rem !important;
+  }
+
+  .desktopish-action-btn {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 0.55rem !important;
+    border-bottom-width: 2px !important;
+  }
+
+  .desktopish-overall {
+    margin-top: 0.3rem !important;
+    font-size: 0.45rem !important;
+    letter-spacing: 0.2em !important;
+  }
+}
+
+.desktopish-landscape-show {
+  display: none;
 }
