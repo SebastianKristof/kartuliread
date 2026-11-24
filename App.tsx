@@ -3,15 +3,18 @@ import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 're
 import { Exercise, SUCCESS_THRESHOLD, BATCH_SIZE } from './types';
 import { ProgressBar } from './components/ProgressBar';
 import { EXERCISES_DATA } from './data/exercisesData';
+import { progressStorage } from './lib/storage';
+import { Capacitor } from '@capacitor/core';
+import { App as NativeApp } from '@capacitor/app';
 
 const STORAGE_KEY = 'kartuliread_progress';
 const STORAGE_LEVEL_KEY = 'kartuliread_current_level';
 const STORAGE_MASTERED_SETS_KEY = 'kartuliread_mastered_sets';
 
-// Load mastered sets from localStorage
+// Load mastered sets from progress storage
 const loadMasteredSets = (): { [key: number]: number[] } => {
   try {
-    const saved = localStorage.getItem(STORAGE_MASTERED_SETS_KEY);
+    const saved = progressStorage.getItem(STORAGE_MASTERED_SETS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       const mastered: { [key: number]: number[] } = {};
@@ -26,19 +29,19 @@ const loadMasteredSets = (): { [key: number]: number[] } => {
   return { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] };
 };
 
-// Save mastered sets to localStorage
+// Save mastered sets to progress storage
 const saveMasteredSets = (mastered: { [key: number]: number[] }) => {
   try {
-    localStorage.setItem(STORAGE_MASTERED_SETS_KEY, JSON.stringify(mastered));
+    return progressStorage.setItem(STORAGE_MASTERED_SETS_KEY, JSON.stringify(mastered));
   } catch (e) {
-    console.error('Failed to save mastered sets:', e);
+    return Promise.reject(e);
   }
 };
 
-// Load progress from localStorage
+// Load progress from progress storage
 const loadProgress = (): { [key: number]: number } => {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = progressStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       // Ensure all 8 levels exist
@@ -54,19 +57,19 @@ const loadProgress = (): { [key: number]: number } => {
   return { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0 };
 };
 
-// Save progress to localStorage
+// Save progress to progress storage
 const saveProgress = (progress: { [key: number]: number }) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    return progressStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   } catch (e) {
-    console.error('Failed to save progress:', e);
+    return Promise.reject(e);
   }
 };
 
-// Load current level from localStorage
+// Load current level from progress storage
 const loadCurrentLevel = (): number => {
   try {
-    const saved = localStorage.getItem(STORAGE_LEVEL_KEY);
+    const saved = progressStorage.getItem(STORAGE_LEVEL_KEY);
     if (saved) {
       const level = parseInt(saved, 10);
       if (level >= 1 && level <= 8) return level;
@@ -77,17 +80,18 @@ const loadCurrentLevel = (): number => {
   return 1;
 };
 
-// Save current level to localStorage
+// Save current level to progress storage
 const saveCurrentLevel = (level: number) => {
   try {
-    localStorage.setItem(STORAGE_LEVEL_KEY, level.toString());
+    return progressStorage.setItem(STORAGE_LEVEL_KEY, level.toString());
   } catch (e) {
-    console.error('Failed to save current level:', e);
+    return Promise.reject(e);
   }
 };
 
 const App: React.FC = () => {
-  // Global progress across levels - load from localStorage on mount
+  const [storageError, setStorageError] = useState(false);
+  // Global progress across levels - load from progress storage on mount
   const [levelProgress, setLevelProgress] = useState<{ [key: number]: number }>(() => loadProgress());
   const [currentLevel, setCurrentLevel] = useState(() => loadCurrentLevel());
   const [showTranscription, setShowTranscription] = useState(false);
@@ -112,20 +116,46 @@ const App: React.FC = () => {
   const revealButtonClass =
     "inline-flex w-auto max-w-full self-center text-slate-400 hover:text-indigo-600 font-black text-[9px] sm:text-[10px] tracking-[0.25em] uppercase py-3 sm:py-4 px-4 sm:px-8 border-2 border-dashed border-slate-200 rounded-xl sm:rounded-[2rem] transition-all hover:bg-white hover:border-indigo-200 group whitespace-nowrap";
 
-  // Save progress to localStorage whenever it changes
+  // Save progress to progress storage whenever it changes
   useEffect(() => {
-    saveProgress(levelProgress);
+    void saveProgress(levelProgress).catch(() => setStorageError(true));
   }, [levelProgress]);
 
-  // Save mastered sets to localStorage whenever it changes
+  // Save mastered sets to progress storage whenever it changes
   useEffect(() => {
-    saveMasteredSets(masteredSets);
+    void saveMasteredSets(masteredSets).catch(() => setStorageError(true));
   }, [masteredSets]);
 
-  // Save current level to localStorage whenever it changes
+  // Save current level to progress storage whenever it changes
   useEffect(() => {
-    saveCurrentLevel(currentLevel);
+    void saveCurrentLevel(currentLevel).catch(() => setStorageError(true));
   }, [currentLevel]);
+
+  const retrySave = async () => {
+    try {
+      await Promise.all([
+        saveProgress(levelProgress),
+        saveMasteredSets(masteredSets),
+        saveCurrentLevel(currentLevel),
+      ]);
+      setStorageError(false);
+    } catch {
+      setStorageError(true);
+    }
+  };
+
+  const backAction = useRef(() => {});
+  backAction.current = () => {
+    if (showResetModal) setShowResetModal(false);
+    else if (showLevelMenu) setShowLevelMenu(false);
+    else if (congratulationsMessage) setCongratulationsMessage(null);
+    else void NativeApp.exitApp();
+  };
+  useEffect(() => {
+    if (Capacitor.getPlatform() !== 'android') return;
+    const listener = NativeApp.addListener('backButton', () => backAction.current());
+    return () => { void listener.then(handle => handle.remove()); };
+  }, []);
 
   // Current level total progress
   const successCount = levelProgress[currentLevel] || 0;
@@ -518,10 +548,16 @@ const App: React.FC = () => {
   }, [congratulationsMessage]);
 
   return (
-    <div className="min-h-[100dvh] bg-slate-50 flex flex-col items-center p-2 sm:p-3 md:p-4 lg:p-5">
+    <div className="app-shell min-h-[100dvh] bg-slate-50 flex flex-col items-center p-2 sm:p-3 md:p-4 lg:p-5">
+      {storageError && (
+        <div role="alert" className="mb-4 w-full max-w-lg rounded-xl bg-amber-100 p-4 text-center text-amber-900">
+          <p>Your latest progress could not be saved. Keep the app open and try again.</p>
+          <button className="mt-2 font-bold underline" onClick={() => void retrySave()}>Try saving again</button>
+        </div>
+      )}
       {/* Reset Confirmation Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="app-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-indigo-100 animate-in zoom-in duration-300">
             <div className="text-center">
               <div className="mb-4">
@@ -554,7 +590,7 @@ const App: React.FC = () => {
       {congratulationsMessage && (
         congratulationsMessage.includes('mastered') ? (
           // Level Complete Modal (Center)
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="app-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 border-4 border-emerald-500 animate-in zoom-in duration-300">
               <div className="text-center">
                 <div className="mb-4">
@@ -574,7 +610,7 @@ const App: React.FC = () => {
           </div>
         ) : (
           // Chunk Complete Toast (Top)
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300">
+          <div className="app-toast fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-top-4 duration-300">
             <div className="bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg flex items-center gap-3 border-2 border-emerald-400">
               <i className="fas fa-check-circle text-white text-lg"></i>
               <span className="font-bold text-sm sm:text-base whitespace-nowrap">{congratulationsMessage.split('\n')[0]}</span>
@@ -834,7 +870,7 @@ const App: React.FC = () => {
 
       {showLevelMenu && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4"
+          className="app-overlay fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4"
           onClick={() => setShowLevelMenu(false)}
         >
           <div
@@ -876,7 +912,7 @@ const App: React.FC = () => {
       )}
 
       {isInRepetitionMode && failedQueue.length > 0 && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-2 duration-200">
+        <div className="app-toast fixed top-3 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-top-2 duration-200">
           <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 sm:px-4 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-amber-300 shadow-sm">
             <i className="fas fa-redo text-amber-700"></i>
             <span>Review Mode: {repetitionIndex + 1} / {failedQueue.length}</span>

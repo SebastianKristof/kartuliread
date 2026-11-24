@@ -1,5 +1,38 @@
-/* Additional custom styles for KartuliRead */
-/* Most styling is handled via Tailwind CSS classes in components */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f8fafc;
+}
+
+.georgian-text { font-family: 'Noto Sans Georgian', sans-serif; }
+.card-gradient { background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); }
+
+:root {
+  --app-inset-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-inset-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-inset-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --app-inset-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+
+.app-shell {
+  padding-top: calc(0.5rem + var(--app-inset-top));
+  padding-bottom: calc(0.5rem + var(--app-inset-bottom));
+  padding-left: calc(0.5rem + var(--app-inset-left));
+  padding-right: calc(0.5rem + var(--app-inset-right));
+}
+
+.app-overlay {
+  padding-top: calc(1rem + var(--app-inset-top));
+  padding-bottom: calc(1rem + var(--app-inset-bottom));
+  padding-left: calc(1rem + var(--app-inset-left));
+  padding-right: calc(1rem + var(--app-inset-right));
+  overflow-y: auto;
+}
+
+.app-toast { top: calc(1rem + var(--app-inset-top)); }
 
 /* Ensure proper viewport handling and prevent horizontal scroll */
 html, body {
