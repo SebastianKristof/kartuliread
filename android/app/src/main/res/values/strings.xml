@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KartuliRead</string>
+    <string name="title_activity_main">KartuliRead</string>
+    <string name="package_name">com.sebastiankristof.kartuliread</string>
+    <string name="custom_url_scheme">com.sebastiankristof.kartuliread</string>
+</resources>
