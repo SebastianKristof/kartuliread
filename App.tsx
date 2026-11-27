@@ -674,7 +674,7 @@ const App: React.FC = () => {
               <ProgressBar current={groupProgress} total={BATCH_SIZE} />
 
               <div className="mt-1.5 sm:mt-2 md:mt-3 flex justify-between items-center text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1 sm:px-2 desktopish-overall">
-                <span>Overall Level Mastery</span>
+                <span>Position in this level</span>
                 <span>{successCount} / {SUCCESS_THRESHOLD}</span>
               </div>
             </div>
