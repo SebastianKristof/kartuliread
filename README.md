@@ -1,84 +1,39 @@
 # KartuliRead
 
-**Adaptive Georgian reading practice with progressive levels and repetition of missed items.**
+I built this to practice recognizing Georgian script. Each exercise shows the Georgian first, gives the learner a chance to read it, and brings back missed items for review.
 
-KartuliRead teaches recognition before translation: the learner reads Georgian script, reveals the transcription when needed, and records whether the item was read successfully. Missed items return for another attempt.
+[Try KartuliRead in your browser](https://kartuliread.vercel.app). Start with Level 1, read the character out loud, then reveal the transcription. Choose **Couldn’t Read** to put that character into the review queue.
 
-![KartuliRead exercise with a missed item queued for review](docs/images/progress.jpg)
-
-[Open the deployed app](https://kartuliread.vercel.app)
-
-## Why it exists
-
-Beginning Georgian learners can memorize vocabulary while still decoding the alphabet too slowly to read. KartuliRead isolates that bottleneck and gives the learner a short, repeatable recognition loop.
-
-The app avoids a generic flash-card sequence. Content is arranged into eight levels and five sets per level, progress is explicit, and missed items feed a repetition queue until they can be read.
-
-## What it does
-
-- organizes Georgian reading material into eight progressive levels;
-- presents one Georgian item at a time without exposing the answer;
-- reveals transcription and meaning on demand;
-- records successful and missed items separately;
-- repeats missed items in a dedicated review mode;
-- tracks set and level mastery;
-- persists progress and mastery state in the browser;
-- adapts typography and layout across phone and desktop screens.
-
-| Read first | Reveal when needed | See what needs review |
+| Try to read it | Reveal the transcription | Review a missed item |
 | --- | --- | --- |
 | ![Georgian reading exercise before reveal](docs/images/exercise.jpg) | ![Transcription and meaning revealed](docs/images/reveal.jpg) | ![Progress with a missed item queued](docs/images/progress.jpg) |
 
-## How it works
+## How a session works
 
-```mermaid
-flowchart LR
-    A["Level + set"] --> B["Shuffled item"]
-    B --> C{"Read it?"}
-    C -->|Yes| D["Mastery progress"]
-    C -->|Not yet| E["Review queue"]
-    E --> B
-    D --> F["Persist locally"]
-    E --> F
-```
+~~~mermaid
+flowchart TD
+    A["Show a Georgian item"] --> B{"Could you read it?"}
+    B -->|Yes| C["Advance to the next item"]
+    B -->|No| D["Add it to the review queue"]
+    D --> C
+    C --> E["Review missed items after the set"]
+~~~
 
-The React client loads a static, pre-generated exercise library. A level contains five sets of ten items. Session state tracks the current group, successful history, failed queue, and repetition index; persisted state restores per-level progress and completed sets.
+Eight levels contain five sets of ten items each. The level counter shows your position. Level 1 repeats characters across sets, and missed items appear separately for review. The app saves progress in your browser, and the exercises ship as static data, so practice starts without an account or a model API call.
 
-No model API is called at runtime. Static content keeps the learning loop fast, deterministic, and usable without an account.
+## Run locally
 
-## A few implementation notes
+The app uses React, TypeScript, and Vite.
 
-- **Error-driven repetition:** missed items become the next review set rather than disappearing into a score.
-- **Mastery hierarchy:** progress is modeled at item, set, and level granularity.
-- **Deterministic runtime content:** exercises are validated and built ahead of time.
-- **Persistence:** progress, completed sets, and learning state survive reloads.
-- **Responsive reading UI:** Georgian and transcription font sizes are fitted independently to the available space.
-- **Data validation tooling:** repository scripts check exercise integrity and regenerate letter-count references.
-
-## Tech stack
-
-React 19, TypeScript, Vite, CSS, browser local storage, static exercise data.
-
-## Running locally
-
-```bash
+~~~sh
 npm ci
-npm run check:data
 npm run dev
-```
+~~~
 
-## Checks
-
-```bash
+~~~sh
 npm run check:data
 npm run typecheck
 npm run build
-```
+~~~
 
-## Current state
-
-**Working web application with a deployed version.** All eight levels, progress tracking, mastery state, missed-item repetition, responsive layout, and local persistence are implemented.
-
-## License
-
-No open-source license has been declared.
+The [exercise checks](scripts/checkExercisesData.mjs) validate the data before it goes into the application.
